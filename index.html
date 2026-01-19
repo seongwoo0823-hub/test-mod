@@ -2,120 +2,115 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🌿 스마트 생태 탐구 (AI + Arduino)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BioScan Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-<header>
-    <h1>🌿 스마트 식물 군집 & 환경 탐구</h1>
-    <p>AI 식물 인식 · 아두이노 환경 측정 · 방형구법 분석</p>
-</header>
+<nav class="navbar">
+    <div class="logo"><i class="fa-solid fa-leaf"></i> BioScan Pro</div>
+    <div class="gemini-box">
+        <input type="text" id="gemini-input" placeholder="여기에 AI에게 할 질문을 적으세요..." class="gemini-input">
+        <button onclick="copyAndOpenGemini()" class="gemini-btn">
+            <i class="fa-solid fa-robot"></i> 복사 & 질문하기
+        </button>
+    </div>
+</nav>
 
-<main class="container">
+<main class="app-container">
 
-    <section id="ai-section" class="card">
-        <div class="section-header">
-            <h2>📷 STEP 1. AI 식물 인식</h2>
-            <button onclick="openGemini('이 식물의 특징과 생태적 역할을 알려줘')" class="btn-gemini">🤖 제미나이에 질문하기</button>
-        </div>
-        
-        <div class="camera-controls">
-            <select id="camera-select" class="camera-select">
-                <option value="" disabled selected>카메라를 선택하세요</option>
+    <section class="card-panel">
+        <div class="card-header">
+            <h2><i class="fa-solid fa-camera"></i> 식물 인식 AI</h2>
+            <select id="camera-select" class="mini-select">
+                <option value="" disabled selected>카메라 찾는 중...</option>
             </select>
-            <button id="startBtn" onclick="init()" class="btn-primary">▶ 카메라 켜기</button>
-        </div>
-
-        <div class="camera-container">
-            <div id="webcam-container"></div>
-            <div id="label-container"></div>
-        </div>
-    </section>
-
-    <section id="sensor-section" class="card">
-        <div class="section-header">
-            <h2>🌡️ STEP 2. 환경 데이터 측정 (아두이노)</h2>
-            <button onclick="openGemini('현재 온도와 습도가 식물 생장에 미치는 영향은?')" class="btn-gemini">🤖 제미나이에 질문하기</button>
         </div>
         
-        <p class="guide-text">아두이노를 USB에 연결하고 '연결하기'를 누르세요. (Baudrate: 9600)</p>
-
-        <div class="sensor-display">
-            <div class="sensor-box">
-                <span class="sensor-label">온도</span>
-                <span id="val-temp" class="sensor-value">--</span> ℃
-            </div>
-            <div class="sensor-box">
-                <span class="sensor-label">토양습도</span>
-                <span id="val-humid" class="sensor-value">--</span> %
-            </div>
-            <div class="sensor-box">
-                <span class="sensor-label">조도</span>
-                <span id="val-light" class="sensor-value">--</span> lx
+        <div class="camera-wrapper">
+            <video id="video-element" autoplay playsinline style="display:none;"></video>
+            <canvas id="canvas-element"></canvas>
+            
+            <div id="loader-text" class="placeholder-text">
+                <i class="fa-solid fa-camera fa-2x"></i>
+                <p>아래 Start 버튼을 눌러주세요</p>
             </div>
         </div>
+        
+        <div id="label-container" class="result-bars"></div>
 
-        <div class="controls">
-            <button onclick="connectArduino()" class="btn-secondary" id="connectBtn">🔌 아두이노 연결</button>
-            <button onclick="startRecording()" class="btn-primary" id="recordBtn" disabled>▶ 기록 시작 (1초 간격)</button>
-            <button onclick="stopAndSaveRecording()" class="btn-download" id="saveRecordBtn" disabled>💾 기록 중지 및 엑셀 저장</button>
-        </div>
-        <p id="record-status" class="small status-text">대기 중...</p>
+        <button id="startBtn" onclick="startCamera()" class="btn-main full-width">
+            <i class="fa-solid fa-power-off"></i> 카메라 켜기 & 분석 시작
+        </button>
     </section>
 
-    <section id="calculator-section" class="card">
-        <div class="section-header">
-            <h2>📝 STEP 3. 방형구법 데이터 입력</h2>
-            <button onclick="openGemini('이 우점종 데이터로 알 수 있는 사실을 분석해줘')" class="btn-gemini">🤖 제미나이에 질문하기</button>
+    <section class="card-panel">
+        <div class="card-header">
+            <h2><i class="fa-solid fa-microchip"></i> 환경 데이터 (Arduino)</h2>
         </div>
 
-        <div class="input-group">
-            <label>전체 방형구 수: <input type="number" id="totalQuadrats" value="10" style="width:60px;"></label>
-        </div>
-        
-        <div class="table-responsive">
-            <table id="inputTable">
-                <thead>
-                    <tr>
-                        <th>식물 종</th>
-                        <th>총 개체수</th>
-                        <th>출현 방형구 수</th>
-                        <th>평균 피도(1~5)</th>
-                        <th>삭제</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+        <div class="sensor-grid">
+            <div class="sensor-item temp">
+                <i class="fa-solid fa-temperature-three-quarters"></i>
+                <span class="sensor-val" id="val-temp">--</span><span class="sensor-unit">°C</span>
+            </div>
+            <div class="sensor-item humid">
+                <i class="fa-solid fa-droplet"></i>
+                <span class="sensor-val" id="val-humid">--</span><span class="sensor-unit">%</span>
+            </div>
+            <div class="sensor-item light">
+                <i class="fa-solid fa-sun"></i>
+                <span class="sensor-val" id="val-light">--</span><span class="sensor-unit">lx</span>
+            </div>
         </div>
 
-        <div class="controls table-controls">
-            <button onclick="addRow()" class="btn-secondary">+ 종 추가</button>
-            <button onclick="calculate()" class="btn-primary">📊 분석 시작</button>
+        <div class="control-group">
+            <button onclick="connectArduino()" class="btn-sub" id="connectBtn">📡 연결</button>
+            <button onclick="startRecording()" class="btn-sub" id="recordBtn" disabled>🔴 기록</button>
+            <button onclick="stopAndSaveRecording()" class="btn-sub" id="saveRecordBtn" disabled>💾 엑셀 저장</button>
         </div>
+        <div id="record-status" class="status-msg">대기 중...</div>
     </section>
 
-    <section id="result-section" class="card" style="display:none;">
-        <h2>🏆 최종 분석 결과</h2>
-        <div id="dominant-result" class="highlight-box"></div>
-        
-        <div class="table-responsive">
-            <table id="resultTable">
-                <thead>
-                    <tr>
-                        <th>순위</th><th>종 이름</th><th>상대밀도</th><th>상대빈도</th><th>상대피도</th><th>중요치(IV)</th>
-                    </tr>
-                </thead>
-                <tbody id="resultBody"></tbody>
-            </table>
+    <section class="card-panel">
+        <div class="card-header">
+            <h2><i class="fa-solid fa-calculator"></i> 방형구법 분석</h2>
         </div>
-        
-        <div class="controls">
-            <button onclick="downloadResultCSV()" class="btn-download">💾 분석 결과 엑셀 저장</button>
+
+        <div class="input-area">
+            <label>전체 방형구 수</label>
+            <input type="number" id="totalQuadrats" value="10" class="modern-input">
         </div>
+
+        <div class="list-container" id="inputList"></div>
+
+        <button onclick="addRow()" class="btn-dashed">+ 식물 종 추가하기</button>
+        <button onclick="calculate()" class="btn-main full-width">📊 우점종 분석 시작</button>
     </section>
+
+    <div id="result-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>분석 결과</h3>
+                <button onclick="closeModal()" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="winner-box">
+                <p>이 구역의 우점종</p>
+                <h1 id="dominant-species">분석 중...</h1>
+                <span id="dominant-iv">IV: 00.0</span>
+            </div>
+            <div class="table-wrap">
+                <table id="resultTable">
+                    <thead><tr><th>순위</th><th>종</th><th>IV</th></tr></thead>
+                    <tbody id="resultBody"></tbody>
+                </table>
+            </div>
+            <button onclick="downloadResultCSV()" class="btn-download"><i class="fa-solid fa-file-excel"></i> 결과 엑셀 저장</button>
+        </div>
+    </div>
 
 </main>
 
