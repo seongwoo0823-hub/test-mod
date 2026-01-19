@@ -14,9 +14,7 @@
     <div class="logo"><i class="fa-solid fa-leaf"></i> BioScan Pro</div>
     <div class="gemini-box">
         <input type="text" id="gemini-input" placeholder="AI에게 물어볼 내용을 적으세요..." class="gemini-input">
-        <button onclick="copyAndOpenGemini()" class="gemini-btn">
-            <i class="fa-solid fa-robot"></i> 질문 복사 & 이동
-        </button>
+        <button onclick="copyAndOpenGemini()" class="gemini-btn"><i class="fa-solid fa-robot"></i> 질문 복사 & 이동</button>
     </div>
 </nav>
 
@@ -25,32 +23,23 @@
     <section class="card-panel">
         <div class="card-header">
             <h2><i class="fa-solid fa-camera"></i> 식물 인식 AI</h2>
-            <select id="camera-select" class="mini-select">
-                <option value="" disabled selected>카메라 찾는 중...</option>
-            </select>
+            <select id="camera-select" class="mini-select"><option value="" disabled selected>카메라 찾는 중...</option></select>
         </div>
-        
         <div class="camera-wrapper">
             <video id="video-element" autoplay playsinline style="display:none;"></video>
             <canvas id="canvas-element"></canvas>
             <div id="loader-text" class="placeholder-text">
-                <i class="fa-solid fa-camera fa-2x"></i>
-                <p>Start 버튼을 눌러주세요</p>
+                <i class="fa-solid fa-camera fa-2x"></i><p>Start 버튼을 눌러주세요</p>
             </div>
         </div>
-        
         <div id="label-container" class="result-bars"></div>
-
-        <button id="startBtn" onclick="startCamera()" class="btn-main full-width">
-            <i class="fa-solid fa-power-off"></i> 카메라 켜기 & 분석 시작
-        </button>
+        <button id="startBtn" onclick="startCamera()" class="btn-main full-width"><i class="fa-solid fa-power-off"></i> 카메라 켜기 & 분석 시작</button>
     </section>
 
     <section class="card-panel">
         <div class="card-header">
             <h2><i class="fa-solid fa-microchip"></i> 환경 데이터 (Arduino)</h2>
         </div>
-
         <div class="sensor-grid">
             <div class="sensor-item temp">
                 <i class="fa-solid fa-temperature-three-quarters"></i>
@@ -64,8 +53,9 @@
             </div>
             <div class="sensor-item light">
                 <i class="fa-solid fa-sun"></i>
-                <span class="sensor-val" id="val-light">--</span><span class="sensor-unit">lx</span>
+                <span class="sensor-val" id="val-light">--</span><span class="sensor-unit">Level</span>
                 <span class="sensor-label">조도</span>
+                <p id="desc-light" class="sensor-desc">측정 대기 중...</p>
             </div>
             <div class="sensor-item soil">
                 <i class="fa-solid fa-water"></i>
@@ -73,7 +63,6 @@
                 <span class="sensor-label">토양습도</span>
             </div>
         </div>
-
         <div class="control-group">
             <button onclick="connectArduino()" class="btn-sub" id="connectBtn">📡 아두이노 연결</button>
             <button onclick="startRecording()" class="btn-sub" id="recordBtn" disabled>🔴 기록 시작</button>
@@ -86,14 +75,11 @@
         <div class="card-header">
             <h2><i class="fa-solid fa-calculator"></i> 방형구법 분석</h2>
         </div>
-
         <div class="input-area">
             <label>전체 방형구 수</label>
             <input type="number" id="totalQuadrats" value="10" min="1" class="modern-input" oninput="validPos(this)">
         </div>
-
         <div class="list-container" id="inputList"></div>
-
         <button onclick="addRow()" class="btn-dashed">+ 식물 종 추가하기</button>
         <button onclick="calculate()" class="btn-main full-width">📊 우점종 분석 시작</button>
     </section>
@@ -118,7 +104,6 @@
             <button onclick="downloadResultCSV()" class="btn-download"><i class="fa-solid fa-file-excel"></i> 통합 결과 저장 (Excel)</button>
         </div>
     </div>
-
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
