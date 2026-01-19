@@ -1,0 +1,125 @@
+/* 기본 설정 */
+:root {
+    --primary-color: #2e7d32; /* 진한 녹색 */
+    --secondary-color: #4caf50; /* 밝은 녹색 */
+    --bg-color: #f1f8e9; /* 배경색 */
+    --text-color: #333;
+    --card-bg: #ffffff;
+}
+
+body {
+    font-family: 'Noto Sans KR', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.6;
+}
+
+header {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 1rem;
+    text-align: center;
+}
+
+header h1 { margin: 0; font-size: 1.5rem; }
+header p { margin: 0.5rem 0 0; font-size: 0.9rem; opacity: 0.9; }
+
+.container {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 0 15px;
+}
+
+/* 카드형 디자인 박스 */
+.card {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    margin-bottom: 25px;
+    border-top: 4px solid var(--secondary-color);
+}
+
+h2 { color: var(--primary-color); font-size: 1.2rem; margin-top: 0; }
+.guide-text { color: #666; font-size: 0.9rem; margin-bottom: 15px; }
+.small { font-size: 0.8rem; margin-top: 5px;}
+
+/* AI 카메라 영역 스타일 */
+.camera-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+#webcam-container canvas {
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    max-width: 100%; /* 모바일 대응 */
+}
+
+#label-container {
+    width: 100%;
+    max-width: 400px;
+}
+
+.label-bar-container {
+    background: #eee;
+    border-radius: 5px;
+    margin-bottom: 5px;
+    overflow: hidden;
+    font-size: 0.9rem;
+    position: relative;
+    height: 24px;
+    line-height: 24px;
+}
+.label-text { position: absolute; left: 10px; z-index: 2; font-weight: bold; }
+.label-bar { height: 100%; background: var(--secondary-color); width: 0%; transition: width 0.3s; opacity: 0.6; }
+
+/* 입력 및 테이블 스타일 */
+.input-group { margin-bottom: 15px; font-weight: bold; }
+.input-group input { padding: 5px; border: 1px solid #ccc; border-radius: 4px; width: 60px; text-align: center;}
+
+.table-responsive { overflow-x: auto; } /* 모바일에서 테이블 스크롤 */
+table { width: 100%; border-collapse: collapse; margin-top: 10px; white-space: nowrap; }
+th { background-color: #e8f5e9; color: var(--primary-color); padding: 10px 5px; font-size: 0.9rem; }
+td { padding: 8px 5px; border-bottom: 1px solid #eee; text-align: center; }
+
+table input {
+    width: 90%; padding: 6px;
+    border: 1px solid #ddd; border-radius: 4px;
+    text-align: center; font-size: 0.9rem;
+}
+
+/* 버튼 스타일 */
+.controls { text-align: center; margin-top: 20px; }
+.table-controls { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;}
+
+button {
+    padding: 10px 20px;
+    border: none; border-radius: 25px;
+    font-weight: bold; cursor: pointer;
+    transition: background-color 0.2s;
+    font-family: inherit;
+}
+.btn-primary { background-color: var(--primary-color); color: white; }
+.btn-primary:hover { background-color: #1b5e20; }
+.btn-secondary { background-color: white; color: var(--primary-color); border: 2px solid var(--primary-color); }
+.btn-delete { background-color: #e57373; color: white; padding: 5px 10px; font-size: 0.8rem; border-radius: 4px;}
+.btn-download { background-color: #1565c0; color: white; width: 100%; max-width: 300px;}
+
+/* 결과 화면 스타일 */
+.highlight-box {
+    background-color: #e8f5e9;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    margin-bottom: 20px;
+    border: 2px solid var(--secondary-color);
+}
+.highlight-text { color: #d32f2f; font-size: 1.3rem; font-weight: bold; }
+
+footer { text-align: center; padding: 20px; color: #888; font-size: 0.8rem; }
