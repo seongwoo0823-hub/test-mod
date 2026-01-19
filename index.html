@@ -3,104 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🌿 스마트 방형구법 탐구</title>
+    <title>🌿 스마트 생태 탐구 (AI + Arduino)</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
 <header>
-    <h1>🌿 스마트 식물 군집 조사</h1>
-    <p>AI로 식물을 찾고, 데이터를 분석해 우점종을 찾아봅시다.</p>
+    <h1>🌿 스마트 식물 군집 & 환경 탐구</h1>
+    <p>AI 식물 인식 · 아두이노 환경 측정 · 방형구법 분석</p>
 </header>
 
 <main class="container">
 
     <section id="ai-section" class="card">
-        <h2>📷 STEP 1. AI 식물 인식 도우미</h2>
-        <p class="guide-text">이 식물의 이름이 헷갈리나요? 카메라를 비춰보세요.</p>
-        
-        <div class="camera-container">
-            <div id="webcam-container">카메라 로딩 대기 중...</div>
-            <div id="label-container"></div>
+        <div class="section-header">
+            <h2>📷 STEP 1. AI 식물 인식</h2>
+            <button onclick="openGemini('이 식물의 특징과 생태적 역할을 알려줘')" class="btn-gemini">🤖 제미나이에 질문하기</button>
         </div>
         
-        <div class="controls">
+        <div class="camera-controls">
+            <select id="camera-select" class="camera-select">
+                <option value="" disabled selected>카메라를 선택하세요</option>
+            </select>
             <button id="startBtn" onclick="init()" class="btn-primary">▶ 카메라 켜기</button>
+        </div>
+
+        <div class="camera-container">
+            <div id="webcam-container"></div>
+            <div id="label-container"></div>
         </div>
     </section>
 
+    <section id="sensor-section" class="card">
+        <div class="section-header">
+            <h2>🌡️ STEP 2. 환경 데이터 측정 (아두이노)</h2>
+            <button onclick="openGemini('현재 온도와 습도가 식물 생장에 미치는 영향은?')" class="btn-gemini">🤖 제미나이에 질문하기</button>
+        </div>
+        
+        <p class="guide-text">아두이노를 USB에 연결하고 '연결하기'를 누르세요. (Baudrate: 9600)</p>
+
+        <div class="sensor-display">
+            <div class="sensor-box">
+                <span class="sensor-label">온도</span>
+                <span id="val-temp" class="sensor-value">--</span> ℃
+            </div>
+            <div class="sensor-box">
+                <span class="sensor-label">토양습도</span>
+                <span id="val-humid" class="sensor-value">--</span> %
+            </div>
+            <div class="sensor-box">
+                <span class="sensor-label">조도</span>
+                <span id="val-light" class="sensor-value">--</span> lx
+            </div>
+        </div>
+
+        <div class="controls">
+            <button onclick="connectArduino()" class="btn-secondary" id="connectBtn">🔌 아두이노 연결</button>
+            <button onclick="startRecording()" class="btn-primary" id="recordBtn" disabled>▶ 기록 시작 (1초 간격)</button>
+            <button onclick="stopAndSaveRecording()" class="btn-download" id="saveRecordBtn" disabled>💾 기록 중지 및 엑셀 저장</button>
+        </div>
+        <p id="record-status" class="small status-text">대기 중...</p>
+    </section>
 
     <section id="calculator-section" class="card">
-        <h2>📝 STEP 2. 방형구법 데이터 기록</h2>
-        <p class="guide-text">조사한 데이터를 입력하면 우점종이 자동 계산됩니다.</p>
+        <div class="section-header">
+            <h2>📝 STEP 3. 방형구법 데이터 입력</h2>
+            <button onclick="openGemini('이 우점종 데이터로 알 수 있는 사실을 분석해줘')" class="btn-gemini">🤖 제미나이에 질문하기</button>
+        </div>
 
         <div class="input-group">
-            <label for="totalQuadrats">전체 방형구 설치 수(개): </label>
-            <input type="number" id="totalQuadrats" value="10" min="1">
+            <label>전체 방형구 수: <input type="number" id="totalQuadrats" value="10" style="width:60px;"></label>
         </div>
         
         <div class="table-responsive">
-        <table id="inputTable">
-            <thead>
-                <tr>
-                    <th>식물 종 이름</th>
-                    <th>총 개체수<br>(밀도용)</th>
-                    <th>출현 방형구 수<br>(빈도용)</th>
-                    <th>평균 피도계급<br>(1~5)</th>
-                    <th>삭제</th>
-                </tr>
-            </thead>
-            <tbody>
-                </tbody>
-        </table>
+            <table id="inputTable">
+                <thead>
+                    <tr>
+                        <th>식물 종</th>
+                        <th>총 개체수</th>
+                        <th>출현 방형구 수</th>
+                        <th>평균 피도(1~5)</th>
+                        <th>삭제</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
 
         <div class="controls table-controls">
-            <button onclick="addRow()" class="btn-secondary">+ 종 추가하기</button>
-            <button onclick="calculate()" class="btn-primary">📊 분석 시작 & 우점종 확인</button>
+            <button onclick="addRow()" class="btn-secondary">+ 종 추가</button>
+            <button onclick="calculate()" class="btn-primary">📊 분석 시작</button>
         </div>
     </section>
 
-
     <section id="result-section" class="card" style="display:none;">
-        <h2>🏆 STEP 3. 최종 분석 결과</h2>
+        <h2>🏆 최종 분석 결과</h2>
+        <div id="dominant-result" class="highlight-box"></div>
         
-        <div id="dominant-result" class="highlight-box">
-            </div>
-
         <div class="table-responsive">
-        <table id="resultTable">
-            <thead>
-                <tr>
-                    <th>순위</th>
-                    <th>종 이름</th>
-                    <th>상대밀도(%)</th>
-                    <th>상대빈도(%)</th>
-                    <th>상대피도(%)</th>
-                    <th>중요치(IV)</th>
-                </tr>
-            </thead>
-            <tbody id="resultBody">
-                </tbody>
-        </table>
+            <table id="resultTable">
+                <thead>
+                    <tr>
+                        <th>순위</th><th>종 이름</th><th>상대밀도</th><th>상대빈도</th><th>상대피도</th><th>중요치(IV)</th>
+                    </tr>
+                </thead>
+                <tbody id="resultBody"></tbody>
+            </table>
         </div>
-
+        
         <div class="controls">
-             <button onclick="downloadCSV()" class="btn-download">💾 엑셀(CSV)로 결과 저장하기</button>
-             <p class="guide-text small">저장된 파일을 AI에게 업로드하여 심층 분석을 의뢰해보세요!</p>
+            <button onclick="downloadResultCSV()" class="btn-download">💾 분석 결과 엑셀 저장</button>
         </div>
     </section>
 
 </main>
 
-<footer>
-    <p>© 2024 생명과학 탐구 수업 도구</p>
-</footer>
-
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/teachablemachine-image@latest/dist/teachablemachine-image.min.js"></script>
 <script src="script.js"></script>
-
 </body>
 </html>
