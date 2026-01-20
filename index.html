@@ -22,18 +22,31 @@
 
 <main class="app-container">
 
+    <section class="card-panel" style="text-align:center;">
+        <div class="card-header">
+            <h2><i class="fa-solid fa-clipboard-check"></i> 학업 성취도 평가</h2>
+        </div>
+        <div class="control-group">
+            <button onclick="startQuiz('사전 평가')" class="btn-sub" style="background:#e3f2fd; color:#1565c0; border:1px solid #bbdefb;">
+                📝 사전 평가
+            </button>
+            <button onclick="startQuiz('사후 평가')" class="btn-sub" style="background:#fce4ec; color:#c2185b; border:1px solid #f8bbd0;">
+                🎓 사후 평가
+            </button>
+        </div>
+    </section>
+
     <section class="card-panel">
         <div class="card-header">
             <h2><i class="fa-solid fa-camera"></i> 식물 인식 AI</h2>
             <select id="camera-select" class="mini-select">
-                <option value="" disabled selected>카메라 권한 확인 중...</option>
+                <option value="" disabled selected>카메라 찾는 중...</option>
             </select>
         </div>
         
         <div class="camera-wrapper">
             <video id="video-element" autoplay playsinline muted style="display:none;"></video>
             <canvas id="canvas-element"></canvas>
-            
             <div id="loader-text" class="placeholder-text">
                 <i class="fa-solid fa-camera fa-2x"></i>
                 <p>Start 버튼을 눌러주세요</p>
@@ -99,7 +112,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>분석 결과</h3>
-                <button onclick="closeModal()" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+                <button onclick="closeModal('result-modal')" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="winner-box">
                 <p>이 구역의 우점종</p>
@@ -115,6 +128,32 @@
             <button onclick="downloadResultCSV()" class="btn-download"><i class="fa-solid fa-file-excel"></i> 통합 결과 저장 (Excel)</button>
         </div>
     </div>
+
+    <div id="quiz-modal" class="modal hidden">
+        <div class="modal-content" style="height:90vh; display:flex; flex-direction:column;">
+            <div class="modal-header">
+                <h3 id="quiz-title">평가 중...</h3>
+                <button onclick="closeModal('quiz-modal')" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div style="flex:1; overflow-y:auto; padding:10px 0;">
+                <div id="quiz-container"></div>
+                
+                <div id="quiz-result" style="display:none; text-align:center; padding:30px 10px;">
+                    <i class="fa-solid fa-trophy fa-3x" style="color:#fbc02d; margin-bottom:15px;"></i>
+                    <h2 id="score-text" style="font-size:2rem; margin:10px 0;">00점</h2>
+                    <p id="level-text" style="font-size:1.2rem; font-weight:bold; color:#2e7d32;"></p>
+                    <p style="color:#666; margin-top:20px;">결과가 선생님께 전송되었습니다.</p>
+                </div>
+            </div>
+
+            <div style="padding-top:10px;">
+                <button id="submit-quiz-btn" onclick="submitQuiz()" class="btn-main full-width">답안 제출하기</button>
+                <button id="close-quiz-btn" onclick="closeModal('quiz-modal')" class="btn-main full-width" style="display:none; background:#555;">메인으로 돌아가기</button>
+            </div>
+        </div>
+    </div>
+
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
