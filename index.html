@@ -11,6 +11,9 @@
     <script type="importmap">
       { "imports": { "@google/generative-ai": "https://esm.run/@google/generative-ai" } }
     </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/teachablemachine-image@latest/dist/teachablemachine-image.min.js"></script>
 </head>
 <body>
 
@@ -53,6 +56,7 @@
         <div class="camera-frame">
             <video id="video-element" autoplay playsinline muted></video>
             <canvas id="canvas-element"></canvas>
+            
             <div id="loader-text" class="placeholder">
                 <i class="fa-solid fa-camera fa-2x"></i>
                 <p>카메라가 꺼져있습니다</p>
@@ -62,7 +66,7 @@
 
         <div class="control-group">
             <button id="startBtn" onclick="startCamera()" class="btn-main full-width">
-                <i class="fa-solid fa-play"></i> 켜기
+                <i class="fa-solid fa-play"></i> 카메라 켜기
             </button>
             <button id="stopBtn" onclick="stopCamera()" class="btn-round gray" style="display:none;">
                 <i class="fa-solid fa-stop"></i> 끄기
@@ -155,8 +159,6 @@
 
 </main>
 
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/teachablemachine-image@latest/dist/teachablemachine-image.min.js"></script>
 <script type="module" src="script.js"></script>
 </body>
 </html>
