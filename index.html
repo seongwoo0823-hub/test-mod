@@ -46,20 +46,18 @@
     <section class="card-panel theme-green">
         <div class="card-header">
             <div class="icon-circle"><i class="fa-solid fa-camera"></i></div>
-            <h2>식물 인식 AI</h2>
+            <h2>식물 관찰 카메라</h2>
             <select id="camera-select" class="mini-select"></select>
         </div>
         
         <div class="camera-frame">
             <video id="video-element" autoplay playsinline muted></video>
-            <canvas id="canvas-element"></canvas>
             
             <div id="loader-text" class="placeholder">
                 <i class="fa-solid fa-camera fa-2x"></i>
                 <p>Start 버튼을 눌러주세요</p>
             </div>
         </div>
-        <div id="label-container" class="result-bars"></div>
 
         <button id="startBtn" onclick="startCamera()" class="btn-main full-width">
             <i class="fa-solid fa-play"></i> 카메라 켜기
@@ -151,8 +149,6 @@
 
 </main>
 
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/teachablemachine-image@latest/dist/teachablemachine-image.min.js"></script>
 <script type="module" src="script.js"></script>
 </body>
 </html>

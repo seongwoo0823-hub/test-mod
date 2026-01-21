@@ -8,7 +8,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 if (window.location.protocol === 'file:') alert("⚠️ GitHub Pages로 접속해야 작동합니다.");
 
 // =====================================
-// 1. 유틸리티 & API
+// 1. 유틸리티 & 설정
 // =====================================
 window.openKeyModal = () => document.getElementById('key-modal').classList.remove('hidden');
 window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
@@ -23,12 +23,15 @@ window.saveApiKey = () => {
     window.closeModal('key-modal');
 };
 
+// =====================================
+// 2. Gemini AI 질문 (최신 모델명)
+// =====================================
 window.askGemini = async () => {
     const question = document.getElementById('ai-input').value;
     const apiKey = localStorage.getItem("GEMINI_KEY");
 
     if(!question) return alert("질문을 입력하세요.");
-    if(!apiKey) return alert("설정(⚙️)에서 API 키를 입력해주세요.");
+    if(!apiKey) return alert("상단 ⚙️ 버튼을 눌러 API 키를 먼저 입력해주세요.");
 
     const box = document.getElementById('ai-response');
     const textDiv = document.getElementById('ai-text');
@@ -37,7 +40,7 @@ window.askGemini = async () => {
 
     try {
         const genAI = new GoogleGenerativeAI(apiKey);
-        // [수정] 가장 최신 모델명 사용 (오류 해결)
+        // [수정] 모델명 업데이트
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
         const result = await model.generateContent(question + " (고등학생에게 설명하듯 쉽고 짧게)");
@@ -62,13 +65,14 @@ window.downloadCSV = (fileName, csvContent) => {
 };
 
 // =====================================
-// 2. AI 카메라
+// 3. AI 카메라 (단순 카메라 기능)
 // =====================================
-const URL_PATH = "./my_model/"; 
-let model, maxPredictions, isRunning = false;
+let isRunning = false;
 
 window.addEventListener('load', async () => {
     window.addRow(); window.addRow(); 
+    
+    // 카메라 리스트 가져오기
     const select = document.getElementById('camera-select');
     try {
         const s = await navigator.mediaDevices.getUserMedia({video:true});
@@ -92,12 +96,9 @@ window.startCamera = async () => {
     const video = document.getElementById("video-element");
     const devId = document.getElementById("camera-select").value;
 
-    btn.innerText = "로딩 중..."; btn.disabled = true;
+    btn.innerText = "카메라 켜는 중..."; btn.disabled = true;
 
     try {
-        model = await tmImage.load(URL_PATH+"model.json", URL_PATH+"metadata.json");
-        maxPredictions = model.getTotalClasses();
-        
         const stream = await navigator.mediaDevices.getUserMedia({
             video:{deviceId:devId?{exact:devId}:undefined, width:640, height:480}
         });
@@ -109,42 +110,12 @@ window.startCamera = async () => {
             document.getElementById('loader-text').style.display="none";
             btn.innerHTML='<i class="fa-solid fa-check"></i> 작동 중'; 
             btn.style.background="#66bb6a";
-            predictLoop();
         };
     } catch(e) { alert("오류: "+e.message); btn.innerText="재시도"; btn.disabled=false; }
 };
 
-async function predictLoop() {
-    if(!isRunning) return;
-    
-    const video = document.getElementById("video-element");
-    const canvas = document.getElementById("canvas-element");
-    const ctx = canvas.getContext("2d");
-
-    if(video.videoWidth > 0 && canvas.width !== video.videoWidth) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-    }
-
-    if(video.readyState === video.HAVE_ENOUGH_DATA){
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        if(model){
-            const p = await model.predict(video);
-            const con = document.getElementById("label-container");
-            con.innerHTML="";
-            p.sort((a,b)=>b.probability-a.probability);
-            for(let i=0; i<3; i++){
-                const prob=(p[i].probability*100).toFixed(1);
-                if(prob>5) con.innerHTML+=`<div class="label-item"><div style="display:flex;justify-content:space-between;"><strong>${p[i].className}</strong><span style="color:#009688;font-weight:bold;">${prob}%</span></div><div class="progress-bg"><div class="progress-fill" style="width:${prob}%"></div></div></div>`;
-            }
-        }
-    }
-    requestAnimationFrame(predictLoop);
-}
-
 // =====================================
-// 3. 아두이노
+// 4. 아두이노
 // =====================================
 let port, keepReading=false;
 let sensorDataLog=[], recordInterval=null;
@@ -220,7 +191,7 @@ window.stopAndSaveRecording = () => {
 };
 
 // =====================================
-// 4. 방형구법
+// 5. 방형구법
 // =====================================
 window.addRow = () => {
     const d=document.createElement('div'); d.className='list-item';
@@ -269,7 +240,7 @@ window.downloadResultCSV = () => {
 };
 
 // =====================================
-// 5. 퀴즈
+// 6. 퀴즈
 // =====================================
 let currentQuizType="", studentInfo={id:"", name:""};
 let quizQuestions=[], selectedAnswers=[], quizTimer=null, timeLeft=300;
@@ -332,7 +303,6 @@ window.startRealQuiz = () => {
     document.getElementById('next-page-btn').classList.remove('hidden');
     document.getElementById('submit-quiz-btn').classList.add('hidden');
     
-    // 랜덤 10문제
     quizQuestions = fullQuestionPool.sort(() => 0.5 - Math.random()).slice(0, 10);
     selectedAnswers = new Array(10).fill(-1);
     
@@ -354,7 +324,6 @@ function renderQuestions(containerId, start, end) {
     container.innerHTML = "";
     for(let i=start; i<end; i++) {
         const q = quizQuestions[i];
-        if(!q) continue;
         const div = document.createElement('div');
         div.className = 'quiz-item';
         let html = `<div class="quiz-q">Q${i+1}. ${q.q} <button class="hint-btn" onclick="toggleHint(this)">💡 힌트</button><div class="hint-text">${q.h}</div></div>`;
