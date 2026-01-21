@@ -3,9 +3,8 @@
 // =====================================
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwMXVBPFTJbRU1x7AI_z1ULPTMTfKwIPgi-fPCrGFGMPtA717L5DxNYfcKHJ3q5v9ip/exec"; 
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-if (window.location.protocol === 'file:') alert("⚠️ GitHub Pages로 접속해야 작동합니다.");
+// ⚠️ HTTPS 환경(GitHub Pages 등)에서만 카메라가 작동합니다.
+if (window.location.protocol === 'file:') alert("⚠️ 보안 정책상 로컬 파일에서는 카메라가 켜지지 않을 수 있습니다.\nGitHub Pages나 로컬 서버(Live Server)를 이용하세요.");
 
 // =====================================
 // 1. 유틸리티 & 설정
@@ -19,16 +18,17 @@ window.saveApiKey = () => {
     const key = document.getElementById('api-key-input').value;
     if(!key) return alert("키를 입력하세요.");
     localStorage.setItem("GEMINI_KEY", key);
-    alert("저장되었습니다!");
+    alert("저장되었습니다! 이제 검색창을 이용해보세요.");
     window.closeModal('key-modal');
 };
 
+// [변경] 라이브러리 없이 직접 API 호출하는 방식으로 변경 (더 안정적)
 window.askGemini = async () => {
     const question = document.getElementById('ai-input').value;
     const apiKey = localStorage.getItem("GEMINI_KEY");
 
     if(!question) return alert("질문을 입력하세요.");
-    if(!apiKey) return alert("상단 ⚙️ 버튼을 눌러 API 키를 먼저 입력해주세요.");
+    if(!apiKey) return alert("상단 ⚙️ 버튼을 눌러 API 키를 먼저 입력해주세요.\n(키가 없으면 AI가 응답할 수 없습니다)");
 
     const box = document.getElementById('ai-response');
     const textDiv = document.getElementById('ai-text');
@@ -36,16 +36,27 @@ window.askGemini = async () => {
     textDiv.innerText = "🤖 AI가 생각 중...";
 
     try {
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+        // Fetch API를 사용한 직접 호출
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: question + " (고등학생에게 설명하듯 쉽고 친절하게 한국어로)" }] }]
+            })
+        });
 
-        const result = await model.generateContent(question + " (고등학생에게 설명하듯 쉽고 짧게)");
-        const response = await result.response;
-        const text = response.text();
-        textDiv.innerText = text;
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error.message);
+        }
+
+        const answer = data.candidates[0].content.parts[0].text;
+        textDiv.innerText = answer;
+
     } catch (error) {
         console.error(error);
-        textDiv.innerText = "오류 발생: " + error.message;
+        textDiv.innerText = "오류 발생: API 키가 정확한지 확인해주세요.\n(" + error.message + ")";
     }
 };
 
@@ -61,127 +72,99 @@ window.downloadCSV = (fileName, csvContent) => {
 };
 
 // =====================================
-// 2. AI 카메라 (tmImage 복구 + 화면 그리기)
+// 2. 카메라 (AI 기능 제거 & 단순화)
 // =====================================
-const URL_PATH = "./my_model/"; 
-let model, maxPredictions, isRunning = false;
 let currentStream = null;
 
 window.addEventListener('load', async () => {
     window.addRow(); window.addRow(); 
     
-    // 카메라 목록
+    // 카메라 목록 불러오기
     const select = document.getElementById('camera-select');
     try {
-        const s = await navigator.mediaDevices.getUserMedia({video: true});
-        s.getTracks().forEach(t=>t.stop());
-        const d = await navigator.mediaDevices.enumerateDevices();
-        const v = d.filter(k=>k.kind==='videoinput');
+        // 권한 요청
+        await navigator.mediaDevices.getUserMedia({video: true});
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        
         select.innerHTML = '';
-        if(v.length===0) { select.innerHTML='<option disabled>카메라 없음</option>'; return; }
-        v.forEach((dev,i)=>{
-            const opt=document.createElement('option');
-            opt.value=dev.deviceId; opt.text=dev.label||`카메라 ${i+1}`;
-            select.appendChild(opt);
-        });
-    } catch(e) { console.log(e); }
+        if(videoDevices.length === 0) {
+            select.innerHTML = '<option disabled>카메라 없음</option>';
+        } else {
+            videoDevices.forEach((device, i) => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = device.label || `카메라 ${i + 1}`;
+                select.appendChild(option);
+            });
+        }
+    } catch(e) {
+        console.log("카메라 권한 오류 또는 장치 없음", e);
+        select.innerHTML = '<option disabled>권한 필요</option>';
+    }
 });
 
 window.changeCamera = () => {
-    if(isRunning) {
+    if(currentStream) {
         window.stopCamera();
-        setTimeout(window.startCamera, 500);
+        setTimeout(window.startCamera, 300);
     }
 };
 
 window.startCamera = async () => {
-    if(isRunning) return;
-
-    const btn = document.getElementById("startBtn");
-    const stopBtn = document.getElementById("stopBtn");
     const video = document.getElementById("video-element");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
     const devId = document.getElementById("camera-select").value;
+    const loader = document.getElementById("loader-text");
 
-    btn.style.display = "none";
+    // UI 변경
+    startBtn.style.display = "none";
     stopBtn.style.display = "inline-block";
-    document.getElementById("loader-text").style.display = "none";
+    loader.style.display = "none";
 
     try {
-        // [중요] AI 모델 로드 (tmImage가 여기서 사용됨)
-        if(!model) {
-            model = await tmImage.load(URL_PATH+"model.json", URL_PATH+"metadata.json");
-            maxPredictions = model.getTotalClasses();
-        }
+        const constraints = {
+            video: { 
+                deviceId: devId ? { exact: devId } : undefined,
+                width: { ideal: 640 }, // 모바일 최적화
+                height: { ideal: 480 },
+                facingMode: "environment" // 후면 카메라 우선
+            }
+        };
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: { deviceId: devId ? { exact: devId } : undefined, width: 480, height: 480 }
-        });
-        
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         currentStream = stream;
         video.srcObject = stream;
-        video.onloadedmetadata = () => {
-            video.play();
-            isRunning = true;
-            predictLoop();
-        };
+        
     } catch(e) { 
-        alert("카메라/AI 오류: " + e.message); 
+        alert("카메라를 켤 수 없습니다: " + e.message); 
         window.stopCamera();
     }
 };
 
 window.stopCamera = () => {
     const video = document.getElementById("video-element");
-    const btn = document.getElementById("startBtn");
+    const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
+    const loader = document.getElementById("loader-text");
 
     if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
     }
+    
     video.srcObject = null;
-    isRunning = false;
+    currentStream = null;
 
-    btn.style.display = "block";
+    // UI 복구
+    startBtn.style.display = "block";
     stopBtn.style.display = "none";
-    document.getElementById("loader-text").style.display = "block";
-    document.getElementById("label-container").innerHTML = "";
+    loader.style.display = "block";
 };
 
-// [핵심] 화면 그리기 및 예측 루프
-async function predictLoop() {
-    if(!isRunning) return;
-    
-    const video = document.getElementById("video-element");
-    const canvas = document.getElementById("canvas-element");
-    const ctx = canvas.getContext("2d");
-
-    // 비디오 크기에 캔버스 맞춤
-    if(video.videoWidth > 0 && canvas.width !== video.videoWidth) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-    }
-
-    if(video.readyState === video.HAVE_ENOUGH_DATA){
-        // 1. 비디오 화면을 캔버스에 그림 (이게 있어야 화면이 보임!)
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // 2. AI 예측
-        if(model){
-            const p = await model.predict(video);
-            const con = document.getElementById("label-container");
-            con.innerHTML="";
-            p.sort((a,b)=>b.probability-a.probability);
-            for(let i=0; i<3; i++){
-                const prob=(p[i].probability*100).toFixed(1);
-                if(prob>5) con.innerHTML+=`<div class="label-item"><div style="display:flex;justify-content:space-between;"><strong>${p[i].className}</strong><span style="color:#009688;font-weight:bold;">${prob}%</span></div><div class="progress-bg"><div class="progress-fill" style="width:${prob}%"></div></div></div>`;
-            }
-        }
-    }
-    requestAnimationFrame(predictLoop);
-}
 
 // =====================================
-// 3. 아두이노
+// 3. 아두이노 (기존 유지)
 // =====================================
 let port, keepReading=false;
 let sensorDataLog=[], recordInterval=null;
@@ -263,7 +246,7 @@ window.stopAndSaveRecording = () => {
 };
 
 // =====================================
-// 4. 방형구법
+// 4. 방형구법 (기존 유지)
 // =====================================
 window.addRow = () => {
     const d=document.createElement('div'); d.className='list-item';
@@ -312,7 +295,7 @@ window.downloadResultCSV = () => {
 };
 
 // =====================================
-// 5. 퀴즈
+// 5. 퀴즈 (기존 유지)
 // =====================================
 let currentQuizType="", studentInfo={id:"", name:""};
 let quizQuestions=[], selectedAnswers=[], quizTimer=null, timeLeft=300;

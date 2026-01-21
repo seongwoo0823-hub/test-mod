@@ -7,14 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Jua&family=Pretendard:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
-    
-    <script type="importmap">
-      { "imports": { "@google/generative-ai": "https://esm.run/@google/generative-ai" } }
-    </script>
-
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/teachablemachine-image@latest/dist/teachablemachine-image.min.js"></script>
-</head>
+    </head>
 <body>
 
 <nav class="navbar">
@@ -49,27 +42,24 @@
     <section class="card-panel theme-green">
         <div class="card-header">
             <div class="icon-circle"><i class="fa-solid fa-camera"></i></div>
-            <h2>식물 인식 AI</h2>
+            <h2>식물 관찰 카메라</h2>
             <select id="camera-select" class="mini-select" onchange="changeCamera()"></select>
         </div>
         
         <div class="camera-frame">
             <video id="video-element" autoplay playsinline muted></video>
-            <canvas id="canvas-element"></canvas>
             
             <div id="loader-text" class="placeholder">
                 <i class="fa-solid fa-camera fa-2x"></i>
                 <p>Start 버튼을 눌러주세요</p>
             </div>
         </div>
-        <div id="label-container" class="result-bars"></div>
-
         <div class="control-group">
             <button id="startBtn" onclick="startCamera()" class="btn-main full-width">
                 <i class="fa-solid fa-play"></i> 카메라 켜기
             </button>
             <button id="stopBtn" onclick="stopCamera()" class="btn-round gray" style="display:none;">
-                <i class="fa-solid fa-stop"></i> 끄기
+                <i class="fa-solid fa-stop"></i> 화면 중지
             </button>
         </div>
     </section>
@@ -111,7 +101,7 @@
         <div class="modal-box small">
             <h3>🔐 AI 설정</h3>
             <p class="modal-desc">Google Gemini API 키 입력</p>
-            <input type="password" id="api-key-input" class="rounded-input" placeholder="API Key">
+            <input type="password" id="api-key-input" class="rounded-input" placeholder="AIzaSy...">
             <button onclick="saveApiKey()" class="btn-main full-width">저장하기</button>
             <button onclick="closeModal('key-modal')" class="btn-text">닫기</button>
         </div>
