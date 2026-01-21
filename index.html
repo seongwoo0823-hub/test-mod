@@ -4,17 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>BioScan Pro</title>
-    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <nav class="navbar">
-    <div class="nav-content">
-        <div class="logo"><i class="fa-solid fa-leaf"></i> BioScan Pro</div>
-        <button onclick="openKeyModal()" class="btn-apikey"><i class="fa-solid fa-key"></i> AI 설정</button>
-    </div>
+    <div class="logo"><i class="fa-solid fa-leaf"></i> BioScan Pro</div>
+    <button onclick="openKeyModal()" class="btn-apikey"><i class="fa-solid fa-key"></i> AI 설정</button>
 </nav>
 
 <main class="app-container">
@@ -23,14 +21,13 @@
         <div class="card-header">
             <h2><i class="fa-solid fa-clipboard-check"></i> 학업 성취도 평가</h2>
         </div>
-        
         <div class="ai-chat-zone">
-            <input type="text" id="ask-1" placeholder="Q. 생태계란 무엇인가요?" onkeypress="if(event.keyCode==13) askGemini(1)">
-            <button onclick="askGemini(1)"><i class="fa-solid fa-arrow-up"></i></button>
+            <input type="text" id="ask-1" placeholder="예: 생태계란 무엇인가요?">
+            <button onclick="askGemini(1)"><i class="fa-solid fa-paper-plane"></i></button>
         </div>
         <div id="ans-1" class="ai-answer hidden"></div>
 
-        <div class="control-group mt-10">
+        <div class="control-group mt-15">
             <button onclick="openLoginModal('사전 평가')" class="btn-sub" style="background:#e3f2fd; color:#1565c0; border:1px solid #90caf9;">📝 사전 평가</button>
             <button onclick="openLoginModal('사후 평가')" class="btn-sub" style="background:#fce4ec; color:#c2185b; border:1px solid #f48fb1;">🎓 사후 평가</button>
         </div>
@@ -40,25 +37,23 @@
         <div class="card-header">
             <h2><i class="fa-solid fa-camera"></i> 식물 인식 AI</h2>
             <select id="camera-select" class="mini-select">
-                <option value="" disabled selected>카메라 찾는 중...</option>
+                <option value="" disabled selected>카메라 권한 확인 중...</option>
             </select>
         </div>
-
         <div class="ai-chat-zone">
-            <input type="text" id="ask-2" placeholder="Q. 이 식물의 특징은?" onkeypress="if(event.keyCode==13) askGemini(2)">
-            <button onclick="askGemini(2)"><i class="fa-solid fa-arrow-up"></i></button>
+            <input type="text" id="ask-2" placeholder="예: 이 식물의 특징은?">
+            <button onclick="askGemini(2)"><i class="fa-solid fa-paper-plane"></i></button>
         </div>
         <div id="ans-2" class="ai-answer hidden"></div>
-        
+
         <div class="camera-wrapper">
             <video id="video-element" autoplay playsinline muted style="display:none;"></video>
             <canvas id="canvas-element"></canvas>
             <div id="loader-text" class="placeholder-text">
                 <i class="fa-solid fa-camera fa-2x"></i>
-                <p>Start 버튼을 눌러주세요</p>
+                <p>Start 버튼을 누르세요</p>
             </div>
         </div>
-        
         <div id="label-container" class="result-bars"></div>
 
         <button id="startBtn" onclick="startCamera()" class="btn-main full-width">
@@ -70,10 +65,9 @@
         <div class="card-header">
             <h2><i class="fa-solid fa-microchip"></i> 환경 데이터 (Arduino)</h2>
         </div>
-
         <div class="ai-chat-zone">
-            <input type="text" id="ask-3" placeholder="Q. 온도와 식물 성장의 관계는?" onkeypress="if(event.keyCode==13) askGemini(3)">
-            <button onclick="askGemini(3)"><i class="fa-solid fa-arrow-up"></i></button>
+            <input type="text" id="ask-3" placeholder="예: 온도가 식물에 미치는 영향?">
+            <button onclick="askGemini(3)"><i class="fa-solid fa-paper-plane"></i></button>
         </div>
         <div id="ans-3" class="ai-answer hidden"></div>
 
@@ -109,10 +103,9 @@
         <div class="card-header">
             <h2><i class="fa-solid fa-calculator"></i> 방형구법 분석</h2>
         </div>
-
         <div class="ai-chat-zone">
-            <input type="text" id="ask-4" placeholder="Q. 우점종 계산 방법은?" onkeypress="if(event.keyCode==13) askGemini(4)">
-            <button onclick="askGemini(4)"><i class="fa-solid fa-arrow-up"></i></button>
+            <input type="text" id="ask-4" placeholder="예: 우점종 계산 방법은?">
+            <button onclick="askGemini(4)"><i class="fa-solid fa-paper-plane"></i></button>
         </div>
         <div id="ans-4" class="ai-answer hidden"></div>
 
@@ -120,20 +113,17 @@
             <label>전체 방형구 수 (개)</label>
             <input type="number" id="totalQuadrats" value="10" min="1" class="modern-input" oninput="validPos(this)">
         </div>
-        
         <div id="inputList" class="list-container"></div>
-
-        <div class="control-group">
-            <button onclick="addRow()" class="btn-dashed" style="width:100%">+ 종 추가하기</button>
-        </div>
-        <button onclick="calculate()" class="btn-main full-width mt-10">📊 우점종 분석 시작</button>
+        
+        <button onclick="addRow()" class="btn-dashed" style="width:100%">+ 종 추가하기</button>
+        <button onclick="calculate()" class="btn-main full-width mt-15">📊 우점종 분석 시작</button>
     </section>
 
     <div id="key-modal" class="modal hidden">
         <div class="modal-content small-modal">
             <div class="modal-header"><h3>AI 설정</h3><button onclick="closeModal('key-modal')" class="close-btn">X</button></div>
-            <p style="font-size:0.9rem; color:#666; margin-bottom:10px;">Google Gemini API 키를 입력하세요.</p>
-            <input type="password" id="api-key-input" class="modern-input" placeholder="API Key">
+            <p style="font-size:0.9rem; color:#666; margin-bottom:10px;">Google Gemini API 키 입력</p>
+            <input type="password" id="api-key-input" class="modern-input" placeholder="API Key 붙여넣기">
             <button onclick="saveApiKey()" class="btn-main full-width">저장</button>
         </div>
     </div>
@@ -143,7 +133,7 @@
             <div class="modal-header"><h3>분석 결과</h3><button onclick="closeModal('result-modal')" class="close-btn">X</button></div>
             <div class="winner-box"><p>우점종</p><h1 id="dominant-species">-</h1><span id="dominant-iv">IV: 0</span></div>
             <div class="table-wrap"><table id="resultTable"><thead><tr><th>순위</th><th>종</th><th>IV</th></tr></thead><tbody id="resultBody"></tbody></table></div>
-            <button onclick="downloadResultCSV()" class="btn-main full-width">결과 엑셀 저장</button>
+            <button onclick="downloadResultCSV()" class="btn-main full-width">결과 저장 (Excel)</button>
         </div>
     </div>
 
@@ -154,7 +144,7 @@
                 <label>학번</label><input type="number" id="student-id" placeholder="예: 20513" class="modern-input">
                 <label>이름</label><input type="text" id="student-name" placeholder="이름" class="modern-input">
             </div>
-            <button onclick="startRealQuiz()" class="btn-main full-width mt-10">평가 시작 (5분)</button>
+            <button onclick="startRealQuiz()" class="btn-main full-width mt-15">평가 시작 (5분)</button>
         </div>
     </div>
 
@@ -179,5 +169,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/teachablemachine-image@latest/dist/teachablemachine-image.min.js"></script>
 <script src="script.js"></script>
+
 </body>
 </html>

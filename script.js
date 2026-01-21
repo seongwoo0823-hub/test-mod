@@ -1,9 +1,9 @@
 // =====================================
-// [필수] 구글 앱스 스크립트 배포 주소
+// [필수] 구글 앱스 스크립트 URL
 // =====================================
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyt3Wa2WcYQn1JeLE8nC0CF_d6mLQ6CDzv2JBwMU1so785By01gm4r-ChR4l_j69gRo/exec"; 
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwMXVBPFTJbRU1x7AI_z1ULPTMTfKwIPgi-fPCrGFGMPtA717L5DxNYfcKHJ3q5v9ip/exec"; 
 
-if (window.location.protocol === 'file:') alert("⚠️ GitHub Pages로 접속해야 모든 기능이 작동합니다.");
+if (window.location.protocol === 'file:') alert("⚠️ 주의: GitHub Pages로 접속해야 카메라와 기능이 작동합니다.");
 
 // =====================================
 // 1. 유틸리티 & API 키 관리 & AI 질문
@@ -16,11 +16,10 @@ function saveApiKey() {
     const key = document.getElementById('api-key-input').value;
     if(!key) return alert("키를 입력하세요.");
     localStorage.setItem("GEMINI_KEY", key);
-    alert("저장되었습니다!");
+    alert("저장되었습니다! 이제 AI에게 질문할 수 있습니다.");
     closeModal('key-modal');
 }
 
-// [핵심] Gemini API 호출
 async function askGemini(zoneId) {
     const inputId = `ask-${zoneId}`;
     const outputId = `ans-${zoneId}`;
@@ -28,18 +27,18 @@ async function askGemini(zoneId) {
     const apiKey = localStorage.getItem("GEMINI_KEY");
 
     if(!question) return alert("질문을 입력하세요.");
-    if(!apiKey) return alert("상단 'AI 설정' 버튼을 눌러 API 키를 먼저 입력해주세요.");
+    if(!apiKey) return alert("상단 'AI 설정' 버튼을 눌러 API 키를 먼저 저장해주세요.");
 
     const outputDiv = document.getElementById(outputId);
     outputDiv.classList.remove('hidden');
-    outputDiv.innerText = "AI가 생각 중입니다...";
+    outputDiv.innerText = "🤖 AI가 생각 중입니다...";
 
     try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: question }] }] })
+            body: JSON.stringify({ contents: [{ parts: [{ text: question + " (짧고 쉽게 설명해줘)" }] }] })
         });
         const data = await response.json();
         
@@ -54,7 +53,6 @@ async function askGemini(zoneId) {
     }
 }
 
-// 엑셀 저장
 function downloadCSV(fileName, csvContent) {
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
@@ -73,7 +71,10 @@ const URL_PATH = "./my_model/";
 let model, maxPredictions, isRunning = false;
 
 window.addEventListener('load', async () => {
+    // 초기화 작업
     addRow(); addRow(); 
+    
+    // 카메라 권한 미리 체크 (안전하게)
     const select = document.getElementById('camera-select');
     try {
         const s = await navigator.mediaDevices.getUserMedia({video:true});
@@ -88,7 +89,10 @@ window.addEventListener('load', async () => {
             select.appendChild(opt);
         });
         if(v.length>1) select.selectedIndex=v.length-1;
-    } catch(e){ select.innerHTML='<option>권한 필요</option>'; }
+    } catch(e){ 
+        console.log("카메라 권한 대기중"); 
+        select.innerHTML='<option>권한 필요</option>'; 
+    }
 });
 
 async function startCamera() {
@@ -136,7 +140,7 @@ async function predictLoop() {
 // =====================================
 // 3. 아두이노
 // =====================================
-let port, keepReading=false, reader;
+let port, keepReading=false;
 let sensorDataLog=[], recordInterval=null;
 let currentVal={t:"-", h:"-", l:"-", s:"-"};
 
@@ -145,7 +149,7 @@ async function connectArduino() {
     try {
         port = await navigator.serial.requestPort();
         await port.open({baudRate:9600});
-        document.getElementById('connectBtn').innerText="✅ 연결됨";
+        document.getElementById('connectBtn').innerText="✅";
         document.getElementById('connectBtn').disabled=true;
         document.getElementById('recordBtn').disabled=false;
         document.getElementById('record-status').innerText="데이터 수신 중...";
@@ -188,7 +192,7 @@ function updateLightDescription(lux) {
     if (lux < 300) { text="음지"; color="#5c6bc0"; }
     else if (lux < 700) { text="반음지"; color="#ffb74d"; }
     else { text="양지"; color="#e65100"; }
-    el.innerText = text; el.style.color = color;
+    el.innerText = text; el.style.backgroundColor = color; el.style.color="white";
 }
 
 function startRecording() {
@@ -230,15 +234,16 @@ function calculate() {
         if(n){ data.push({n, c, fV:f/totalQ, cv}); sD+=c; sF+=(f/totalQ); sC+=cv; }
     });
     if(data.length===0) return alert("데이터 입력 필요");
-    
     const tbody=document.getElementById('resultBody'); tbody.innerHTML="";
     let maxIV=0, domName="";
     data=data.map(d=>{
-        const iv=((d.c/sD)*100)+((d.fV/sF)*100)+((d.cv/sC)*100);
+        const rD = (sD===0) ? 0 : (d.c / sD) * 100;
+        const rF = (sF===0) ? 0 : (d.fV / sF) * 100;
+        const rC = (sC===0) ? 0 : (d.cv / sC) * 100;
+        const iv = rD + rF + rC;
         if(iv>maxIV){maxIV=iv; domName=d.n;}
         return{...d, iv};
     }).sort((a,b)=>b.iv-a.iv);
-    
     data.forEach((d,i)=>tbody.innerHTML+=`<tr><td>${i+1}</td><td>${d.n}</td><td>${d.iv.toFixed(1)}</td></tr>`);
     document.getElementById('dominant-species').innerText=domName;
     document.getElementById('dominant-iv').innerText="IV: "+maxIV.toFixed(1);
@@ -261,23 +266,23 @@ function downloadResultCSV() {
 }
 
 // =====================================
-// 5. 퀴즈 (학생정보, 타이머, 힌트)
+// 5. 퀴즈
 // =====================================
 let currentQuizType="", studentInfo={id:"", name:""};
 let quizQuestions=[], selectedAnswers=[], quizTimer=null, timeLeft=300;
 
-// 문제 데이터 (30개 예시 중 일부)
+// 문제 데이터 (10개 예시)
 const fullQuestionPool = [
     { q: "일정한 지역에 모여 사는 '같은 종'의 개체 집단은?", a: 0, h: "종이 같아야 합니다.", opts: ["개체군", "군집", "생태계", "생물권"] },
     { q: "여러 종의 개체군들이 모여 이룬 집단은?", a: 2, h: "개체군들의 모임입니다.", opts: ["개체", "개체군", "군집", "환경"] },
     { q: "식물 군집 조사 시 사용하는 1mx1m 틀은?", a: 0, h: "사각형 모양의 틀입니다.", opts: ["방형구", "원형구", "프레파라트", "샬레"] },
-    { q: "방형구법으로 알 수 없는 지표는?", a: 3, h: "식물의 수나 분포와 관련 없는 것입니다.", opts: ["밀도", "빈도", "피도", "지능"] },
-    { q: "특정 종의 개체 수를 전체 면적으로 나눈 값은?", a: 0, h: "빽빽한 정도입니다.", opts: ["밀도", "빈도", "피도", "중요치"] },
-    { q: "특정 종이 출현한 방형구 수를 전체 방형구 수로 나눈 것은?", a: 1, h: "얼마나 자주 나타나는가?", opts: ["밀도", "빈도", "피도", "상대밀도"] },
-    { q: "지표면을 덮고 있는 면적의 비율은?", a: 2, h: "식물이 땅을 덮은 정도입니다.", opts: ["밀도", "빈도", "피도", "중요치"] },
-    { q: "중요치가 가장 높아 군집을 대표하는 종은?", a: 1, h: "우세하여 점령한 종입니다.", opts: ["희소종", "우점종", "지표종", "외래종"] },
-    { q: "중요치(IV)를 구하는 올바른 공식은?", a: 1, h: "상대값 3가지를 더합니다.", opts: ["밀도+빈도+피도", "상대밀도+상대빈도+상대피도", "밀도x빈도x피도", "상대밀도/상대피도"] },
-    { q: "모든 종의 상대밀도 합은 얼마인가?", a: 2, h: "전체 비율의 합입니다.", opts: ["10%", "50%", "100%", "300%"] }
+    { q: "방형구법으로 알 수 없는 지표는?", a: 3, h: "지능은 측정할 수 없습니다.", opts: ["밀도", "빈도", "피도", "지능"] },
+    { q: "특정 종의 개체 수를 전체 면적으로 나눈 값은?", a: 0, h: "빽빽한 정도.", opts: ["밀도", "빈도", "피도", "중요치"] },
+    { q: "특정 종이 출현한 방형구 수를 전체 방형구 수로 나눈 것은?", a: 1, h: "얼마나 자주 출현하는가?", opts: ["밀도", "빈도", "피도", "상대밀도"] },
+    { q: "지표면을 덮고 있는 면적의 비율은?", a: 2, h: "덮을 피(被) 자를 씁니다.", opts: ["밀도", "빈도", "피도", "중요치"] },
+    { q: "군집을 대표하는 가장 우세한 종은?", a: 1, h: "우수하고 점령한 종.", opts: ["희소종", "우점종", "지표종", "외래종"] },
+    { q: "중요치(IV) 공식으로 옳은 것은?", a: 1, h: "상대값 3개의 합.", opts: ["밀도+빈도+피도", "상대밀도+상대빈도+상대피도", "밀도x빈도", "상대밀도/상대피도"] },
+    { q: "모든 종의 상대밀도 합은?", a: 2, h: "전체는 100%입니다.", opts: ["10%", "50%", "100%", "300%"] }
 ];
 
 function openLoginModal(type) {
