@@ -8,7 +8,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 if (window.location.protocol === 'file:') alert("⚠️ GitHub Pages로 접속해야 작동합니다.");
 
 // =====================================
-// 1. 유틸리티 & 설정
+// 1. 유틸리티 & API
 // =====================================
 window.openKeyModal = () => document.getElementById('key-modal').classList.remove('hidden');
 window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
@@ -23,15 +23,12 @@ window.saveApiKey = () => {
     window.closeModal('key-modal');
 };
 
-// =====================================
-// 2. Gemini AI 질문 (최신 모델명)
-// =====================================
 window.askGemini = async () => {
     const question = document.getElementById('ai-input').value;
     const apiKey = localStorage.getItem("GEMINI_KEY");
 
     if(!question) return alert("질문을 입력하세요.");
-    if(!apiKey) return alert("상단 ⚙️ 버튼을 눌러 API 키를 먼저 입력해주세요.");
+    if(!apiKey) return alert("설정(⚙️)에서 API 키를 입력해주세요.");
 
     const box = document.getElementById('ai-response');
     const textDiv = document.getElementById('ai-text');
@@ -40,9 +37,7 @@ window.askGemini = async () => {
 
     try {
         const genAI = new GoogleGenerativeAI(apiKey);
-        // [수정] 모델명 업데이트
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-
         const result = await model.generateContent(question + " (고등학생에게 설명하듯 쉽고 짧게)");
         const response = await result.response;
         const text = response.text();
@@ -65,68 +60,135 @@ window.downloadCSV = (fileName, csvContent) => {
 };
 
 // =====================================
-// 3. AI 카메라 (단순 카메라 기능)
+// 2. AI 카메라 (전환 및 끄기 기능 추가)
 // =====================================
-let isRunning = false;
+const URL_PATH = "./my_model/"; 
+let model, maxPredictions, isRunning = false;
+let currentStream = null;
 
 window.addEventListener('load', async () => {
     window.addRow(); window.addRow(); 
     
-    // 카메라 리스트 가져오기
+    // 카메라 목록 가져오기
     const select = document.getElementById('camera-select');
     try {
-        const s = await navigator.mediaDevices.getUserMedia({video:true});
-        s.getTracks().forEach(t=>t.stop());
-        const d = await navigator.mediaDevices.enumerateDevices();
-        const v = d.filter(k=>k.kind==='videoinput');
+        const stream = await navigator.mediaDevices.getUserMedia({video: true});
+        // 목록만 가져오고 스트림은 바로 끔 (권한 획득용)
+        stream.getTracks().forEach(track => track.stop());
+
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        
         select.innerHTML = '';
-        if(v.length===0) { select.innerHTML='<option disabled>카메라 없음</option>'; return; }
-        v.forEach((dev,i)=>{
-            const opt=document.createElement('option');
-            opt.value=dev.deviceId; opt.text=dev.label||`카메라 ${i+1}`;
+        videoDevices.forEach((dev, i) => {
+            const opt = document.createElement('option');
+            opt.value = dev.deviceId;
+            opt.text = dev.label || `카메라 ${i+1}`;
             select.appendChild(opt);
         });
-        if(v.length>1) select.selectedIndex=v.length-1;
-    } catch(e){ select.innerHTML='<option>권한 필요</option>'; }
+    } catch(e) { console.log(e); }
 });
 
+// 카메라 전환 시 자동 재시작
+window.changeCamera = () => {
+    if(isRunning) {
+        window.stopCamera();
+        setTimeout(window.startCamera, 500); // 잠시 후 재시작
+    }
+};
+
 window.startCamera = async () => {
-    if(isRunning) return alert("이미 켜져 있습니다.");
+    if(isRunning) return; // 이미 켜져있으면 무시
+
     const btn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
     const video = document.getElementById("video-element");
     const devId = document.getElementById("camera-select").value;
 
-    btn.innerText = "카메라 켜는 중..."; btn.disabled = true;
+    btn.style.display = "none"; // 켜기 버튼 숨김
+    stopBtn.style.display = "inline-block"; // 끄기 버튼 보임
+    document.getElementById("loader-text").style.display = "none";
 
     try {
+        // AI 모델 로드 (최초 1회)
+        if(!model) {
+            model = await tmImage.load(URL_PATH+"model.json", URL_PATH+"metadata.json");
+            maxPredictions = model.getTotalClasses();
+        }
+
         const stream = await navigator.mediaDevices.getUserMedia({
-            video:{deviceId:devId?{exact:devId}:undefined, width:640, height:480}
+            video: { deviceId: devId ? { exact: devId } : undefined, width: 480, height: 480 }
         });
         
+        currentStream = stream;
         video.srcObject = stream;
         video.onloadedmetadata = () => {
-            video.play(); 
+            video.play();
             isRunning = true;
-            document.getElementById('loader-text').style.display="none";
-            btn.innerHTML='<i class="fa-solid fa-check"></i> 작동 중'; 
-            btn.style.background="#66bb6a";
+            predictLoop();
         };
-    } catch(e) { alert("오류: "+e.message); btn.innerText="재시도"; btn.disabled=false; }
+    } catch(e) { 
+        alert("카메라 오류: " + e.message); 
+        window.stopCamera();
+    }
 };
 
+window.stopCamera = () => {
+    const video = document.getElementById("video-element");
+    const btn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+
+    if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+    }
+    video.srcObject = null;
+    isRunning = false;
+
+    btn.style.display = "block";
+    stopBtn.style.display = "none";
+    document.getElementById("loader-text").style.display = "block";
+    document.getElementById("label-container").innerHTML = "";
+};
+
+async function predictLoop() {
+    if(!isRunning) return;
+    
+    const video = document.getElementById("video-element");
+    
+    if(model && video.readyState === video.HAVE_ENOUGH_DATA){
+        const p = await model.predict(video);
+        const con = document.getElementById("label-container");
+        con.innerHTML="";
+        p.sort((a,b)=>b.probability-a.probability);
+        for(let i=0; i<3; i++){
+            const prob=(p[i].probability*100).toFixed(1);
+            if(prob>5) con.innerHTML+=`<div class="label-item"><div style="display:flex;justify-content:space-between;"><strong>${p[i].className}</strong><span style="color:#009688;font-weight:bold;">${prob}%</span></div><div class="progress-bg"><div class="progress-fill" style="width:${prob}%"></div></div></div>`;
+        }
+    }
+    requestAnimationFrame(predictLoop);
+}
+
 // =====================================
-// 4. 아두이노
+// 3. 아두이노 (모바일 체크)
 // =====================================
 let port, keepReading=false;
 let sensorDataLog=[], recordInterval=null;
 let currentVal={t:"-", h:"-", l:"-", s:"-"};
 
 window.connectArduino = async () => {
-    if(!navigator.serial) return alert("PC 크롬에서만 가능");
+    // 모바일 감지
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if(isMobile) {
+        alert("🚫 모바일 환경에서는 보안 정책상 USB 연결을 지원하지 않습니다.\n\nPC(크롬/엣지)에서 이용해주세요.");
+        return;
+    }
+
+    if(!navigator.serial) return alert("이 브라우저는 시리얼 통신을 지원하지 않습니다. (PC 크롬 권장)");
+    
     try {
         port = await navigator.serial.requestPort();
         await port.open({baudRate:9600});
-        document.getElementById('connectBtn').innerText="✅";
+        document.getElementById('connectBtn').innerText="✅ 연결됨";
         document.getElementById('connectBtn').disabled=true;
         document.getElementById('recordBtn').disabled=false;
         document.getElementById('record-status').innerText="데이터 수신 중...";
@@ -191,7 +253,7 @@ window.stopAndSaveRecording = () => {
 };
 
 // =====================================
-// 5. 방형구법
+// 4. 방형구법
 // =====================================
 window.addRow = () => {
     const d=document.createElement('div'); d.className='list-item';
@@ -240,7 +302,7 @@ window.downloadResultCSV = () => {
 };
 
 // =====================================
-// 6. 퀴즈
+// 5. 퀴즈 (기존 유지)
 // =====================================
 let currentQuizType="", studentInfo={id:"", name:""};
 let quizQuestions=[], selectedAnswers=[], quizTimer=null, timeLeft=300;
@@ -303,6 +365,7 @@ window.startRealQuiz = () => {
     document.getElementById('next-page-btn').classList.remove('hidden');
     document.getElementById('submit-quiz-btn').classList.add('hidden');
     
+    // 랜덤 10문제
     quizQuestions = fullQuestionPool.sort(() => 0.5 - Math.random()).slice(0, 10);
     selectedAnswers = new Array(10).fill(-1);
     

@@ -46,22 +46,28 @@
     <section class="card-panel theme-green">
         <div class="card-header">
             <div class="icon-circle"><i class="fa-solid fa-camera"></i></div>
-            <h2>식물 관찰 카메라</h2>
-            <select id="camera-select" class="mini-select"></select>
+            <h2>식물 인식 AI</h2>
+            <select id="camera-select" class="mini-select" onchange="changeCamera()"></select>
         </div>
         
         <div class="camera-frame">
             <video id="video-element" autoplay playsinline muted></video>
-            
+            <canvas id="canvas-element"></canvas>
             <div id="loader-text" class="placeholder">
                 <i class="fa-solid fa-camera fa-2x"></i>
-                <p>Start 버튼을 눌러주세요</p>
+                <p>카메라가 꺼져있습니다</p>
             </div>
         </div>
+        <div id="label-container" class="result-bars"></div>
 
-        <button id="startBtn" onclick="startCamera()" class="btn-main full-width">
-            <i class="fa-solid fa-play"></i> 카메라 켜기
-        </button>
+        <div class="control-group">
+            <button id="startBtn" onclick="startCamera()" class="btn-main full-width">
+                <i class="fa-solid fa-play"></i> 켜기
+            </button>
+            <button id="stopBtn" onclick="stopCamera()" class="btn-round gray" style="display:none;">
+                <i class="fa-solid fa-stop"></i> 끄기
+            </button>
+        </div>
     </section>
 
     <section class="card-panel theme-orange">
@@ -76,11 +82,11 @@
             <div class="sensor-box"><span class="s-label">토양</span><span class="s-val" id="val-soil">--</span><span class="s-unit">%</span></div>
         </div>
         <div class="control-group">
-            <button onclick="connectArduino()" class="btn-round dark" id="connectBtn">📡 연결</button>
+            <button onclick="connectArduino()" class="btn-round dark" id="connectBtn">📡 연결 (PC전용)</button>
             <button onclick="startRecording()" class="btn-round red" id="recordBtn" disabled>🔴 기록</button>
             <button onclick="stopAndSaveRecording()" class="btn-round blue" id="saveRecordBtn" disabled>💾 저장</button>
         </div>
-        <div id="record-status" class="status-msg">센서 연결 대기 중...</div>
+        <div id="record-status" class="status-msg">아두이노를 PC USB에 연결하세요.</div>
     </section>
 
     <section class="card-panel theme-purple">
@@ -100,8 +106,8 @@
     <div id="key-modal" class="modal hidden">
         <div class="modal-box small">
             <h3>🔐 AI 설정</h3>
-            <p class="modal-desc">Google Gemini API 키를 입력하세요.</p>
-            <input type="password" id="api-key-input" class="rounded-input" placeholder="API Key 입력">
+            <p class="modal-desc">Google Gemini API 키 입력</p>
+            <input type="password" id="api-key-input" class="rounded-input" placeholder="API Key">
             <button onclick="saveApiKey()" class="btn-main full-width">저장하기</button>
             <button onclick="closeModal('key-modal')" class="btn-text">닫기</button>
         </div>
@@ -149,6 +155,8 @@
 
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/teachablemachine-image@latest/dist/teachablemachine-image.min.js"></script>
 <script type="module" src="script.js"></script>
 </body>
 </html>
