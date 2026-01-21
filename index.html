@@ -7,13 +7,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Jua&family=Pretendard:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
-
+    
     <script type="importmap">
-      {
-        "imports": {
-          "@google/generative-ai": "https://esm.run/@google/generative-ai"
-        }
-      }
+      { "imports": { "@google/generative-ai": "https://esm.run/@google/generative-ai" } }
     </script>
 </head>
 <body>
@@ -28,7 +24,7 @@
         <button onclick="askGemini()"><i class="fa-solid fa-magnifying-glass"></i></button>
     </div>
     <div id="ai-response" class="ai-box hidden">
-        <div class="ai-header">🤖 AI 답변 <button onclick="closeAiBox()" style="float:right; border:none; background:none; cursor:pointer;">X</button></div>
+        <div class="ai-header">🤖 AI 답변 <button onclick="closeAiBox()" class="close-x">X</button></div>
         <div id="ai-text" class="ai-content"></div>
     </div>
 </nav>
@@ -57,6 +53,7 @@
         <div class="camera-frame">
             <video id="video-element" autoplay playsinline muted></video>
             <canvas id="canvas-element"></canvas>
+            
             <div id="loader-text" class="placeholder">
                 <i class="fa-solid fa-camera fa-2x"></i>
                 <p>Start 버튼을 눌러주세요</p>
@@ -74,27 +71,12 @@
             <div class="icon-circle"><i class="fa-solid fa-temperature-half"></i></div>
             <h2>환경 데이터</h2>
         </div>
-
         <div class="sensor-grid">
-            <div class="sensor-box">
-                <span class="s-label">온도</span>
-                <span class="s-val" id="val-temp">--</span><span class="s-unit">°C</span>
-            </div>
-            <div class="sensor-box">
-                <span class="s-label">습도</span>
-                <span class="s-val" id="val-humid">--</span><span class="s-unit">%</span>
-            </div>
-            <div class="sensor-box">
-                <span class="s-label">조도</span>
-                <span class="s-val" id="val-light">--</span><span class="s-unit">Lv</span>
-                <span id="desc-light" class="s-badge">대기</span>
-            </div>
-            <div class="sensor-box">
-                <span class="s-label">토양</span>
-                <span class="s-val" id="val-soil">--</span><span class="s-unit">%</span>
-            </div>
+            <div class="sensor-box"><span class="s-label">온도</span><span class="s-val" id="val-temp">--</span><span class="s-unit">°C</span></div>
+            <div class="sensor-box"><span class="s-label">습도</span><span class="s-val" id="val-humid">--</span><span class="s-unit">%</span></div>
+            <div class="sensor-box"><span class="s-label">조도</span><span class="s-val" id="val-light">--</span><span class="s-unit">Lv</span><span id="desc-light" class="s-badge">대기</span></div>
+            <div class="sensor-box"><span class="s-label">토양</span><span class="s-val" id="val-soil">--</span><span class="s-unit">%</span></div>
         </div>
-
         <div class="control-group">
             <button onclick="connectArduino()" class="btn-round dark" id="connectBtn">📡 연결</button>
             <button onclick="startRecording()" class="btn-round red" id="recordBtn" disabled>🔴 기록</button>
@@ -108,14 +90,11 @@
             <div class="icon-circle"><i class="fa-solid fa-calculator"></i></div>
             <h2>방형구법 분석</h2>
         </div>
-
         <div class="input-area">
             <label>전체 방형구 수 (개)</label>
             <input type="number" id="totalQuadrats" value="10" min="1" class="rounded-input" oninput="validPos(this)">
         </div>
-        
         <div id="inputList" class="list-container"></div>
-
         <button onclick="addRow()" class="btn-dashed">+ 종 추가하기</button>
         <button onclick="calculate()" class="btn-main full-width mt-15">📊 결과 분석하기</button>
     </section>
@@ -134,12 +113,10 @@
         <div class="modal-box small">
             <h3>학생 정보 입력</h3>
             <div class="form-group">
-                <label>학번</label>
-                <input type="number" id="student-id" placeholder="예: 20513" class="rounded-input" min="0" oninput="validPos(this)">
+                <label>학번</label><input type="number" id="student-id" placeholder="예: 20513" class="rounded-input" min="0" oninput="validPos(this)">
             </div>
             <div class="form-group">
-                <label>이름</label>
-                <input type="text" id="student-name" placeholder="이름 입력" class="rounded-input">
+                <label>이름</label><input type="text" id="student-name" placeholder="이름 입력" class="rounded-input">
             </div>
             <button onclick="startRealQuiz()" class="btn-main full-width mt-15">평가 시작 (5분)</button>
             <button onclick="closeModal('login-modal')" class="btn-text">취소</button>
@@ -177,6 +154,5 @@
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/teachablemachine-image@latest/dist/teachablemachine-image.min.js"></script>
 <script type="module" src="script.js"></script>
-
 </body>
 </html>

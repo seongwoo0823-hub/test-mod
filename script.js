@@ -3,19 +3,18 @@
 // =====================================
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwMXVBPFTJbRU1x7AI_z1ULPTMTfKwIPgi-fPCrGFGMPtA717L5DxNYfcKHJ3q5v9ip/exec"; 
 
-// [중요] Google Generative AI SDK 가져오기
+// Google Gemini SDK
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-if (window.location.protocol === 'file:') alert("⚠️ GitHub Pages로 접속해야만 작동합니다.");
+if (window.location.protocol === 'file:') alert("⚠️ GitHub Pages로 접속해야 모든 기능이 작동합니다.");
 
 // =====================================
 // 1. 유틸리티 & 설정
 // =====================================
-// HTML 버튼에서 호출할 수 있도록 window 객체에 함수 등록
 window.openKeyModal = () => document.getElementById('key-modal').classList.remove('hidden');
 window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
 window.closeAiBox = () => document.getElementById('ai-response').classList.add('hidden');
-window.validPos = (el) => { if(el.value < 0) el.value = 0; }; // 음수 방지
+window.validPos = (el) => { if(el.value < 0) el.value = 0; }; 
 
 window.saveApiKey = () => {
     const key = document.getElementById('api-key-input').value;
@@ -26,7 +25,7 @@ window.saveApiKey = () => {
 };
 
 // =====================================
-// 2. Gemini AI 질문 (SDK 사용)
+// 2. Gemini AI 질문 (SDK 방식)
 // =====================================
 window.askGemini = async () => {
     const question = document.getElementById('ai-input').value;
@@ -41,18 +40,17 @@ window.askGemini = async () => {
     textDiv.innerText = "🤖 AI가 생각 중입니다...";
 
     try {
-        // SDK 초기화 및 모델 호출
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-        const result = await model.generateContent(question + " (고등학생 수준으로 쉽고 짧게 설명해줘)");
+        const result = await model.generateContent(question + " (고등학생에게 설명하듯 쉽고 짧게)");
         const response = await result.response;
         const text = response.text();
         
         textDiv.innerText = text;
     } catch (error) {
         console.error(error);
-        textDiv.innerText = "오류 발생: API 키가 정확한지 확인해주세요.\n" + error.message;
+        textDiv.innerText = "오류 발생: " + error.message;
     }
 };
 
@@ -68,15 +66,13 @@ window.downloadCSV = (fileName, csvContent) => {
 };
 
 // =====================================
-// 3. AI 카메라 (검은 화면 해결)
+// 3. AI 카메라 (화면 송출 Fix)
 // =====================================
 const URL_PATH = "./my_model/"; 
 let model, maxPredictions, isRunning = false;
 
-// 페이지 로드 시 초기화
 window.addEventListener('load', async () => {
-    window.addRow(); window.addRow(); // 방형구 초기화
-    
+    window.addRow(); window.addRow(); 
     const select = document.getElementById('camera-select');
     try {
         const s = await navigator.mediaDevices.getUserMedia({video:true});
@@ -104,6 +100,7 @@ window.startCamera = async () => {
     btn.innerText = "로딩 중..."; btn.disabled = true;
 
     try {
+        // AI 모델을 나중에 로드해도 되지만, 안전하게 먼저 로드
         model = await tmImage.load(URL_PATH+"model.json", URL_PATH+"metadata.json");
         maxPredictions = model.getTotalClasses();
         
@@ -112,6 +109,7 @@ window.startCamera = async () => {
         });
         
         video.srcObject = stream;
+        // 비디오가 로드되면 재생 시작
         video.onloadedmetadata = () => {
             video.play(); 
             isRunning = true;
@@ -130,24 +128,26 @@ async function predictLoop() {
     const canvas = document.getElementById("canvas-element");
     const ctx = canvas.getContext("2d");
 
-    // [중요] 캔버스 크기를 비디오 원본 크기에 맞춤 (검은 화면 방지)
+    // [중요] 비디오 크기가 있을 때만 캔버스 크기 맞춤
     if(video.videoWidth > 0 && canvas.width !== video.videoWidth) {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
     }
 
-    // 1. 비디오 화면을 캔버스에 그리기
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // 2. AI 예측
-    if(model){
-        const p = await model.predict(video); // video 요소 자체를 넘김
-        const con = document.getElementById("label-container");
-        con.innerHTML="";
-        p.sort((a,b)=>b.probability-a.probability);
-        for(let i=0; i<3; i++){
-            const prob=(p[i].probability*100).toFixed(1);
-            if(prob>5) con.innerHTML+=`<div class="label-item"><div style="display:flex;justify-content:space-between;"><strong>${p[i].className}</strong><span style="color:#009688;font-weight:bold;">${prob}%</span></div><div class="progress-bg"><div class="progress-fill" style="width:${prob}%"></div></div></div>`;
+    // 1. 비디오 화면을 캔버스에 그리기 (이게 화면 송출의 핵심)
+    if(video.readyState === video.HAVE_ENOUGH_DATA){
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // 2. AI 예측
+        if(model){
+            const p = await model.predict(video);
+            const con = document.getElementById("label-container");
+            con.innerHTML="";
+            p.sort((a,b)=>b.probability-a.probability);
+            for(let i=0; i<3; i++){
+                const prob=(p[i].probability*100).toFixed(1);
+                if(prob>5) con.innerHTML+=`<div class="label-item"><div style="display:flex;justify-content:space-between;"><strong>${p[i].className}</strong><span style="color:#009688;font-weight:bold;">${prob}%</span></div><div class="progress-bg"><div class="progress-fill" style="width:${prob}%"></div></div></div>`;
+            }
         }
     }
     requestAnimationFrame(predictLoop);
