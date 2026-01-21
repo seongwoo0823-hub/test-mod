@@ -3,13 +3,12 @@
 // =====================================
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwMXVBPFTJbRU1x7AI_z1ULPTMTfKwIPgi-fPCrGFGMPtA717L5DxNYfcKHJ3q5v9ip/exec"; 
 
-// Google Gemini SDK
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-if (window.location.protocol === 'file:') alert("⚠️ GitHub Pages로 접속해야 모든 기능이 작동합니다.");
+if (window.location.protocol === 'file:') alert("⚠️ GitHub Pages로 접속해야 작동합니다.");
 
 // =====================================
-// 1. 유틸리티 & 설정
+// 1. 유틸리티 & API
 // =====================================
 window.openKeyModal = () => document.getElementById('key-modal').classList.remove('hidden');
 window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
@@ -24,29 +23,26 @@ window.saveApiKey = () => {
     window.closeModal('key-modal');
 };
 
-// =====================================
-// 2. Gemini AI 질문 (SDK 방식)
-// =====================================
 window.askGemini = async () => {
     const question = document.getElementById('ai-input').value;
     const apiKey = localStorage.getItem("GEMINI_KEY");
 
     if(!question) return alert("질문을 입력하세요.");
-    if(!apiKey) return alert("상단 ⚙️ 버튼을 눌러 API 키를 먼저 입력해주세요.");
+    if(!apiKey) return alert("설정(⚙️)에서 API 키를 입력해주세요.");
 
     const box = document.getElementById('ai-response');
     const textDiv = document.getElementById('ai-text');
     box.classList.remove('hidden');
-    textDiv.innerText = "🤖 AI가 생각 중입니다...";
+    textDiv.innerText = "🤖 AI가 생각 중...";
 
     try {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // [수정] 가장 최신 모델명 사용 (오류 해결)
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
         const result = await model.generateContent(question + " (고등학생에게 설명하듯 쉽고 짧게)");
         const response = await result.response;
         const text = response.text();
-        
         textDiv.innerText = text;
     } catch (error) {
         console.error(error);
@@ -66,7 +62,7 @@ window.downloadCSV = (fileName, csvContent) => {
 };
 
 // =====================================
-// 3. AI 카메라 (화면 송출 Fix)
+// 2. AI 카메라
 // =====================================
 const URL_PATH = "./my_model/"; 
 let model, maxPredictions, isRunning = false;
@@ -77,7 +73,6 @@ window.addEventListener('load', async () => {
     try {
         const s = await navigator.mediaDevices.getUserMedia({video:true});
         s.getTracks().forEach(t=>t.stop());
-        
         const d = await navigator.mediaDevices.enumerateDevices();
         const v = d.filter(k=>k.kind==='videoinput');
         select.innerHTML = '';
@@ -100,7 +95,6 @@ window.startCamera = async () => {
     btn.innerText = "로딩 중..."; btn.disabled = true;
 
     try {
-        // AI 모델을 나중에 로드해도 되지만, 안전하게 먼저 로드
         model = await tmImage.load(URL_PATH+"model.json", URL_PATH+"metadata.json");
         maxPredictions = model.getTotalClasses();
         
@@ -109,7 +103,6 @@ window.startCamera = async () => {
         });
         
         video.srcObject = stream;
-        // 비디오가 로드되면 재생 시작
         video.onloadedmetadata = () => {
             video.play(); 
             isRunning = true;
@@ -128,17 +121,14 @@ async function predictLoop() {
     const canvas = document.getElementById("canvas-element");
     const ctx = canvas.getContext("2d");
 
-    // [중요] 비디오 크기가 있을 때만 캔버스 크기 맞춤
     if(video.videoWidth > 0 && canvas.width !== video.videoWidth) {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
     }
 
-    // 1. 비디오 화면을 캔버스에 그리기 (이게 화면 송출의 핵심)
     if(video.readyState === video.HAVE_ENOUGH_DATA){
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         
-        // 2. AI 예측
         if(model){
             const p = await model.predict(video);
             const con = document.getElementById("label-container");
@@ -154,7 +144,7 @@ async function predictLoop() {
 }
 
 // =====================================
-// 4. 아두이노
+// 3. 아두이노
 // =====================================
 let port, keepReading=false;
 let sensorDataLog=[], recordInterval=null;
@@ -230,7 +220,7 @@ window.stopAndSaveRecording = () => {
 };
 
 // =====================================
-// 5. 방형구법
+// 4. 방형구법
 // =====================================
 window.addRow = () => {
     const d=document.createElement('div'); d.className='list-item';
@@ -279,7 +269,7 @@ window.downloadResultCSV = () => {
 };
 
 // =====================================
-// 6. 퀴즈
+// 5. 퀴즈
 // =====================================
 let currentQuizType="", studentInfo={id:"", name:""};
 let quizQuestions=[], selectedAnswers=[], quizTimer=null, timeLeft=300;
@@ -364,6 +354,7 @@ function renderQuestions(containerId, start, end) {
     container.innerHTML = "";
     for(let i=start; i<end; i++) {
         const q = quizQuestions[i];
+        if(!q) continue;
         const div = document.createElement('div');
         div.className = 'quiz-item';
         let html = `<div class="quiz-q">Q${i+1}. ${q.q} <button class="hint-btn" onclick="toggleHint(this)">💡 힌트</button><div class="hint-text">${q.h}</div></div>`;
@@ -417,7 +408,6 @@ window.submitQuiz = () => {
     quizQuestions.forEach((q,i)=>{
         const correct = (q.a === selectedAnswers[i]);
         if(correct) score+=10;
-        // 구글 시트에 문제 내용과 정오답 상세 기록
         ansStr += `[Q${i+1}. ${q.q.substring(0,10)}...](${correct?'O':'X'}) / `;
     });
     let level="노력 요함 (하)";
