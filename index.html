@@ -7,6 +7,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Jua&family=Pretendard:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/generative-ai": "https://esm.run/@google/generative-ai"
+        }
+      }
+    </script>
 </head>
 <body>
 
@@ -20,7 +28,7 @@
         <button onclick="askGemini()"><i class="fa-solid fa-magnifying-glass"></i></button>
     </div>
     <div id="ai-response" class="ai-box hidden">
-        <div class="ai-header">🤖 AI 답변 <button onclick="closeAiBox()" style="float:right; border:none; background:none;">X</button></div>
+        <div class="ai-header">🤖 AI 답변 <button onclick="closeAiBox()" style="float:right; border:none; background:none; cursor:pointer;">X</button></div>
         <div id="ai-text" class="ai-content"></div>
     </div>
 </nav>
@@ -47,7 +55,7 @@
         </div>
         
         <div class="camera-frame">
-            <video id="video-element" autoplay playsinline muted style="display:none;"></video>
+            <video id="video-element" autoplay playsinline muted></video>
             <canvas id="canvas-element"></canvas>
             <div id="loader-text" class="placeholder">
                 <i class="fa-solid fa-camera fa-2x"></i>
@@ -126,7 +134,7 @@
         <div class="modal-box small">
             <h3>학생 정보 입력</h3>
             <div class="form-group">
-                <label>학번 (숫자만)</label>
+                <label>학번</label>
                 <input type="number" id="student-id" placeholder="예: 20513" class="rounded-input" min="0" oninput="validPos(this)">
             </div>
             <div class="form-group">
@@ -168,6 +176,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/teachablemachine-image@latest/dist/teachablemachine-image.min.js"></script>
-<script src="script.js"></script>
+<script type="module" src="script.js"></script>
+
 </body>
 </html>
