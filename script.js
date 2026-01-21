@@ -3,10 +3,10 @@
 // =====================================
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyt3Wa2WcYQn1JeLE8nC0CF_d6mLQ6CDzv2JBwMU1so785By01gm4r-ChR4l_j69gRo/exec"; 
 
-if (window.location.protocol === 'file:') alert("⚠️ 주의: GitHub Pages로 접속해야 카메라와 저장 기능이 정상 작동합니다.");
+if (window.location.protocol === 'file:') alert("⚠️ GitHub Pages로 접속해야 모든 기능이 작동합니다.");
 
 // =====================================
-// 1. 유틸리티 & API 키 관리
+// 1. 유틸리티 & API 키 관리 & AI 질문
 // =====================================
 function openKeyModal() { document.getElementById('key-modal').classList.remove('hidden'); }
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
@@ -20,7 +20,7 @@ function saveApiKey() {
     closeModal('key-modal');
 }
 
-// [핵심] Gemini API 호출 함수
+// [핵심] Gemini API 호출
 async function askGemini(zoneId) {
     const inputId = `ask-${zoneId}`;
     const outputId = `ans-${zoneId}`;
@@ -52,6 +52,18 @@ async function askGemini(zoneId) {
         console.error(error);
         outputDiv.innerText = "에러 발생: " + error.message;
     }
+}
+
+// 엑셀 저장
+function downloadCSV(fileName, csvContent) {
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 // =====================================
@@ -136,6 +148,7 @@ async function connectArduino() {
         document.getElementById('connectBtn').innerText="✅ 연결됨";
         document.getElementById('connectBtn').disabled=true;
         document.getElementById('recordBtn').disabled=false;
+        document.getElementById('record-status').innerText="데이터 수신 중...";
         keepReading=true; readSerial();
     } catch(e){console.log(e);}
 }
@@ -175,7 +188,7 @@ function updateLightDescription(lux) {
     if (lux < 300) { text="음지"; color="#5c6bc0"; }
     else if (lux < 700) { text="반음지"; color="#ffb74d"; }
     else { text="양지"; color="#e65100"; }
-    el.innerText = text; el.style.backgroundColor = color; el.style.color="white";
+    el.innerText = text; el.style.color = color;
 }
 
 function startRecording() {
@@ -197,8 +210,190 @@ function stopAndSaveRecording() {
 }
 
 // =====================================
-// 4. 방형구법 & 퀴즈 (기존 로직 동일)
+// 4. 방형구법
 // =====================================
-// (이전 코드의 퀴즈 로직, 방형구 계산 로직, 엑셀 다운로드 함수 등은 너무 길어서 생략했습니다. 
-//  반드시 직전 답변의 script.js에서 해당 부분들을 복사해서 여기에 붙여넣으세요!)
-//  * startRealQuiz, submitQuiz, renderQuestions, calculate, addRow, downloadResultCSV 등 *
+function addRow() {
+    const d=document.createElement('div'); d.className='list-item';
+    d.innerHTML=`<div class="list-inputs"><input type="text" class="p-name" placeholder="식물명"><input type="number" class="p-count" placeholder="개체수" min="0" oninput="validPos(this)"><input type="number" class="p-freq" placeholder="방형구" min="0" oninput="validPos(this)"><input type="number" class="p-cover" placeholder="피도" min="0" max="5" oninput="validPos(this)"></div><button onclick="this.parentElement.remove()" class="btn-del"><i class="fa-solid fa-trash"></i></button>`;
+    document.getElementById('inputList').appendChild(d);
+}
+function calculate() {
+    const totalQ=Math.abs(parseFloat(document.getElementById('totalQuadrats').value))||10;
+    const items=document.querySelectorAll('.list-item');
+    let data=[], sD=0, sF=0, sC=0;
+    items.forEach(i=>{
+        const n=i.querySelector('.p-name').value;
+        const c=Math.abs(parseFloat(i.querySelector('.p-count').value)||0);
+        const f=Math.abs(parseFloat(i.querySelector('.p-freq').value)||0);
+        let cv=Math.abs(parseFloat(i.querySelector('.p-cover').value)||0);
+        if(cv>5)cv=5;
+        if(n){ data.push({n, c, fV:f/totalQ, cv}); sD+=c; sF+=(f/totalQ); sC+=cv; }
+    });
+    if(data.length===0) return alert("데이터 입력 필요");
+    
+    const tbody=document.getElementById('resultBody'); tbody.innerHTML="";
+    let maxIV=0, domName="";
+    data=data.map(d=>{
+        const iv=((d.c/sD)*100)+((d.fV/sF)*100)+((d.cv/sC)*100);
+        if(iv>maxIV){maxIV=iv; domName=d.n;}
+        return{...d, iv};
+    }).sort((a,b)=>b.iv-a.iv);
+    
+    data.forEach((d,i)=>tbody.innerHTML+=`<tr><td>${i+1}</td><td>${d.n}</td><td>${d.iv.toFixed(1)}</td></tr>`);
+    document.getElementById('dominant-species').innerText=domName;
+    document.getElementById('dominant-iv').innerText="IV: "+maxIV.toFixed(1);
+    document.getElementById('result-modal').classList.remove('hidden');
+}
+function downloadResultCSV() {
+    let csv="[입력 데이터]\n전체 방형구 수,"+document.getElementById('totalQuadrats').value+"\n식물명,개체수,출현 방형구,피도\n";
+    document.querySelectorAll('.list-item').forEach(i=>{
+        const n=i.querySelector('.p-name').value;
+        if(n) csv+=`${n},${i.querySelector('.p-count').value},${i.querySelector('.p-freq').value},${i.querySelector('.p-cover').value}\n`;
+    });
+    csv+="\n[분석 결과]\n순위,우점종,종이름,중요치(IV)\n";
+    const rows=document.getElementById('resultBody').querySelectorAll('tr');
+    if(rows.length===0)return alert("결과 없음");
+    rows.forEach(r=>{
+        const c=r.querySelectorAll('td');
+        csv+=`${c[0].innerText},${c[0].innerText==='1'?'WIN':''},${c[1].innerText},${c[2].innerText}\n`;
+    });
+    downloadCSV("통합보고서.csv", csv);
+}
+
+// =====================================
+// 5. 퀴즈 (학생정보, 타이머, 힌트)
+// =====================================
+let currentQuizType="", studentInfo={id:"", name:""};
+let quizQuestions=[], selectedAnswers=[], quizTimer=null, timeLeft=300;
+
+// 문제 데이터 (30개 예시 중 일부)
+const fullQuestionPool = [
+    { q: "일정한 지역에 모여 사는 '같은 종'의 개체 집단은?", a: 0, h: "종이 같아야 합니다.", opts: ["개체군", "군집", "생태계", "생물권"] },
+    { q: "여러 종의 개체군들이 모여 이룬 집단은?", a: 2, h: "개체군들의 모임입니다.", opts: ["개체", "개체군", "군집", "환경"] },
+    { q: "식물 군집 조사 시 사용하는 1mx1m 틀은?", a: 0, h: "사각형 모양의 틀입니다.", opts: ["방형구", "원형구", "프레파라트", "샬레"] },
+    { q: "방형구법으로 알 수 없는 지표는?", a: 3, h: "식물의 수나 분포와 관련 없는 것입니다.", opts: ["밀도", "빈도", "피도", "지능"] },
+    { q: "특정 종의 개체 수를 전체 면적으로 나눈 값은?", a: 0, h: "빽빽한 정도입니다.", opts: ["밀도", "빈도", "피도", "중요치"] },
+    { q: "특정 종이 출현한 방형구 수를 전체 방형구 수로 나눈 것은?", a: 1, h: "얼마나 자주 나타나는가?", opts: ["밀도", "빈도", "피도", "상대밀도"] },
+    { q: "지표면을 덮고 있는 면적의 비율은?", a: 2, h: "식물이 땅을 덮은 정도입니다.", opts: ["밀도", "빈도", "피도", "중요치"] },
+    { q: "중요치가 가장 높아 군집을 대표하는 종은?", a: 1, h: "우세하여 점령한 종입니다.", opts: ["희소종", "우점종", "지표종", "외래종"] },
+    { q: "중요치(IV)를 구하는 올바른 공식은?", a: 1, h: "상대값 3가지를 더합니다.", opts: ["밀도+빈도+피도", "상대밀도+상대빈도+상대피도", "밀도x빈도x피도", "상대밀도/상대피도"] },
+    { q: "모든 종의 상대밀도 합은 얼마인가?", a: 2, h: "전체 비율의 합입니다.", opts: ["10%", "50%", "100%", "300%"] }
+];
+
+function openLoginModal(type) {
+    if (GOOGLE_SCRIPT_URL.includes("여기에")) { alert("선생님! script.js 파일에 구글 URL을 입력해주세요."); return; }
+    currentQuizType = type;
+    document.getElementById('student-id').value = "";
+    document.getElementById('student-name').value = "";
+    document.getElementById('login-modal').classList.remove('hidden');
+}
+
+function startRealQuiz() {
+    const id = document.getElementById('student-id').value;
+    const name = document.getElementById('student-name').value;
+    if(!id || !name) return alert("학번과 이름을 입력해주세요.");
+    
+    studentInfo = { id, name };
+    closeModal('login-modal');
+    
+    document.getElementById('quiz-modal').classList.remove('hidden');
+    document.getElementById('quiz-type-title').innerText = currentQuizType;
+    document.getElementById('quiz-page-1').classList.remove('hidden');
+    document.getElementById('quiz-page-2').classList.add('hidden');
+    document.getElementById('prev-page-btn').classList.add('hidden');
+    document.getElementById('next-page-btn').classList.remove('hidden');
+    document.getElementById('submit-quiz-btn').classList.add('hidden');
+    
+    quizQuestions = fullQuestionPool.sort(() => 0.5 - Math.random()).slice(0, 10);
+    selectedAnswers = new Array(10).fill(-1);
+    
+    renderQuestions('quiz-page-1', 0, 5);
+    renderQuestions('quiz-page-2', 5, 10);
+    
+    timeLeft = 300;
+    updateTimerDisplay();
+    if(quizTimer) clearInterval(quizTimer);
+    quizTimer = setInterval(() => {
+        timeLeft--;
+        updateTimerDisplay();
+        if(timeLeft <= 0) quizTimeout();
+    }, 1000);
+}
+
+function renderQuestions(containerId, start, end) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = "";
+    for(let i=start; i<end; i++) {
+        const q = quizQuestions[i];
+        if(!q) continue;
+        const div = document.createElement('div');
+        div.className = 'quiz-item';
+        let html = `<div class="quiz-q">Q${i+1}. ${q.q} <button class="hint-btn" onclick="toggleHint(this)">💡 힌트</button><div class="hint-text">${q.h}</div></div>`;
+        q.opts.forEach((opt, optIdx) => {
+            html += `<label class="quiz-opt" onclick="selectOpt(this, ${i}, ${optIdx})"><input type="radio" name="q${i}" value="${optIdx}"> ${opt}</label>`;
+        });
+        div.innerHTML = html;
+        container.appendChild(div);
+    }
+}
+
+function toggleHint(btn) {
+    const txt = btn.nextElementSibling;
+    txt.style.display = (txt.style.display==='block') ? 'none' : 'block';
+}
+function selectOpt(label, qIdx, optIdx) {
+    label.parentElement.querySelectorAll('.quiz-opt').forEach(el=>el.classList.remove('selected'));
+    label.classList.add('selected');
+    selectedAnswers[qIdx] = optIdx;
+}
+function changePage(p) {
+    if(p===1) {
+        document.getElementById('quiz-page-1').classList.remove('hidden');
+        document.getElementById('quiz-page-2').classList.add('hidden');
+        document.getElementById('prev-page-btn').classList.add('hidden');
+        document.getElementById('next-page-btn').classList.remove('hidden');
+        document.getElementById('submit-quiz-btn').classList.add('hidden');
+    } else {
+        document.getElementById('quiz-page-1').classList.add('hidden');
+        document.getElementById('quiz-page-2').classList.remove('hidden');
+        document.getElementById('prev-page-btn').classList.remove('hidden');
+        document.getElementById('next-page-btn').classList.add('hidden');
+        document.getElementById('submit-quiz-btn').classList.remove('hidden');
+    }
+}
+function updateTimerDisplay() {
+    const m = Math.floor(timeLeft/60);
+    const s = timeLeft%60;
+    document.getElementById('timer-display').innerText = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+}
+function quizTimeout() {
+    clearInterval(quizTimer);
+    alert("시간 초과! 다음 기회에...");
+    closeModal('quiz-modal');
+    sendToGoogleSheet(0, "통과 못함 (시간초과)", "미제출");
+}
+function submitQuiz() {
+    if(selectedAnswers.includes(-1)) return alert("모든 문제를 풀어주세요.");
+    clearInterval(quizTimer);
+    let score=0, ansStr="";
+    quizQuestions.forEach((q,i)=>{
+        const correct = (q.a === selectedAnswers[i]);
+        if(correct) score+=10;
+        ansStr += `Q${i+1}(${correct?'O':'X'}) `;
+    });
+    let level="노력 요함 (하)";
+    if(score>=80) level="매우 우수 (상)";
+    else if(score>=50) level="보통 (중)";
+    
+    alert(`[평가 완료]\n점수: ${score}점\n수준: ${level}`);
+    closeModal('quiz-modal');
+    sendToGoogleSheet(score, level, ansStr);
+}
+function sendToGoogleSheet(score, level, answers) {
+    const data = { id:studentInfo.id, name:studentInfo.name, type:currentQuizType, score:score, level:level, answers:answers };
+    fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST", mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+    });
+}
