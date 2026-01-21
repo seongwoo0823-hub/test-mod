@@ -103,7 +103,7 @@ th { background: #fafafa; padding: 10px; color: #666; position: sticky; top: 0; 
 td { padding: 10px; border-bottom: 1px solid #f0f0f0; text-align: center; }
 .hidden { display: none !important; }
 
-/* AI Analysis Button & Modal */
+/* AI Analysis Button (주황색 & 중앙 정렬) */
 .ai-analysis-section { margin: 60px 0 40px 0; text-align: center; display: flex; justify-content: center; align-items: center; }
 .big-btn {
     font-family: 'Jua', sans-serif; font-size: 1.4rem; padding: 20px 30px; width: 90%; max-width: 450px;

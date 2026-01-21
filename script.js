@@ -1,5 +1,5 @@
 // =====================================
-// [필수] 구글 앱스 스크립트 URL 입력
+// [필수] 구글 앱스 스크립트 웹 앱 URL을 여기에 붙여넣으세요!
 // =====================================
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzDoJXUdQ5QHGvhEHckBnEtslsQdpBlc2NQygMAmco8f8zyG6eiaUc_yaIysT8ZlXBsiA/exec"; 
 
@@ -32,6 +32,7 @@ window.saveApiKey = () => {
     window.closeModal('key-modal');
 };
 
+// [수정] 일반 AI 채팅 (모델: gemini-3-flash-preview)
 window.askGemini = async () => {
     const question = document.getElementById('ai-input').value;
     const apiKey = localStorage.getItem("GEMINI_KEY");
@@ -41,12 +42,12 @@ window.askGemini = async () => {
     const box = document.getElementById('ai-response');
     const textDiv = document.getElementById('ai-text');
     box.classList.remove('hidden');
-    textDiv.innerText = "🤖 AI가 생각 중...";
+    textDiv.innerText = "🤖 AI(Gemini 3)가 생각 중...";
 
     try {
         const ai = new GoogleGenAI({ apiKey: apiKey });
         const response = await ai.models.generateContent({
-            model: "gemini-1.5-flash",
+            model: "gemini-3-flash-preview", // [수정됨]
             contents: question + " (고등학생에게 설명하듯 쉽고 친절하게)",
         });
         textDiv.innerText = response.text();
@@ -67,14 +68,13 @@ window.downloadCSV = (fileName, csvContent) => {
     document.body.removeChild(link);
 };
 
-// [핵심] 구글 시트로 데이터 전송
+// [핵심] 구글 시트로 데이터 전송 함수
 async function sendDataToSheet(payload) {
     if (GOOGLE_SCRIPT_URL.includes("여기에")) {
         alert("script.js 맨 윗줄에 구글 앱스 스크립트 URL을 넣어주세요!");
         return false;
     }
 
-    // 학생 정보 확인
     if (!studentInfo.id || !studentInfo.name) {
         const id = prompt("학번을 입력해주세요 (예: 20513)");
         const name = prompt("이름을 입력해주세요");
@@ -107,7 +107,7 @@ async function sendDataToSheet(payload) {
 }
 
 // =====================================
-// 2. AI 종합 분석 (주황색 버튼 클릭 시 실행)
+// 2. AI 종합 분석 (모델: gemini-3-flash-preview)
 // =====================================
 window.runComprehensiveAnalysis = async () => {
     const apiKey = localStorage.getItem("GEMINI_KEY");
@@ -155,7 +155,7 @@ window.runComprehensiveAnalysis = async () => {
     try {
         const ai = new GoogleGenAI({ apiKey: apiKey });
         const response = await ai.models.generateContent({
-            model: "gemini-1.5-flash",
+            model: "gemini-3-flash-preview", // [수정됨]
             contents: prompt,
         });
         content.innerText = response.text();
