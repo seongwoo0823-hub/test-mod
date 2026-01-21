@@ -1,7 +1,9 @@
 // =====================================
-// [필수] 구글 앱스 스크립트 주소
+// [필수] 구글 앱스 스크립트 주소 (필요시 수정)
 // =====================================
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwMXVBPFTJbRU1x7AI_z1ULPTMTfKwIPgi-fPCrGFGMPtA717L5DxNYfcKHJ3q5v9ip/exec"; 
+
+import { GoogleGenAI } from "@google/genai";
 
 // ⚠️ HTTPS 환경(GitHub Pages 등)에서만 카메라가 작동합니다.
 if (window.location.protocol === 'file:') alert("⚠️ 보안 정책상 로컬 파일에서는 카메라가 켜지지 않을 수 있습니다.\nGitHub Pages나 로컬 서버(Live Server)를 이용하세요.");
@@ -22,41 +24,34 @@ window.saveApiKey = () => {
     window.closeModal('key-modal');
 };
 
-// [변경] 라이브러리 없이 직접 API 호출하는 방식으로 변경 (더 안정적)
+// [수정] 최신 Google GenAI SDK 적용 (gemini-3-flash-preview)
 window.askGemini = async () => {
     const question = document.getElementById('ai-input').value;
     const apiKey = localStorage.getItem("GEMINI_KEY");
 
     if(!question) return alert("질문을 입력하세요.");
-    if(!apiKey) return alert("상단 ⚙️ 버튼을 눌러 API 키를 먼저 입력해주세요.\n(키가 없으면 AI가 응답할 수 없습니다)");
+    if(!apiKey) return alert("상단 ⚙️ 버튼을 눌러 API 키를 먼저 입력해주세요.");
 
     const box = document.getElementById('ai-response');
     const textDiv = document.getElementById('ai-text');
     box.classList.remove('hidden');
-    textDiv.innerText = "🤖 AI가 생각 중...";
+    textDiv.innerText = "🤖 AI(Gemini 3)가 생각 중...";
 
     try {
-        // Fetch API를 사용한 직접 호출
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: question + " (고등학생에게 설명하듯 쉽고 친절하게 한국어로)" }] }]
-            })
+        // 사용자가 제공한 코드 스타일 적용
+        const ai = new GoogleGenAI({ apiKey: apiKey });
+
+        const response = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: question + " (고등학생에게 설명하듯 쉽고 짧게 한국어로)",
         });
 
-        const data = await response.json();
-        
-        if (data.error) {
-            throw new Error(data.error.message);
-        }
-
-        const answer = data.candidates[0].content.parts[0].text;
-        textDiv.innerText = answer;
+        // SDK의 응답 형태 처리
+        textDiv.innerText = response.text; 
 
     } catch (error) {
         console.error(error);
-        textDiv.innerText = "오류 발생: API 키가 정확한지 확인해주세요.\n(" + error.message + ")";
+        textDiv.innerText = "오류 발생: " + error.message + "\n(모델명이나 API키를 확인해주세요)";
     }
 };
 
@@ -72,7 +67,7 @@ window.downloadCSV = (fileName, csvContent) => {
 };
 
 // =====================================
-// 2. 카메라 (AI 기능 제거 & 단순화)
+// 2. 카메라 (단순화: AI 분류 제거, 화면 출력 위주)
 // =====================================
 let currentStream = null;
 
@@ -82,7 +77,6 @@ window.addEventListener('load', async () => {
     // 카메라 목록 불러오기
     const select = document.getElementById('camera-select');
     try {
-        // 권한 요청
         await navigator.mediaDevices.getUserMedia({video: true});
         const devices = await navigator.mediaDevices.enumerateDevices();
         const videoDevices = devices.filter(device => device.kind === 'videoinput');
@@ -118,7 +112,6 @@ window.startCamera = async () => {
     const devId = document.getElementById("camera-select").value;
     const loader = document.getElementById("loader-text");
 
-    // UI 변경
     startBtn.style.display = "none";
     stopBtn.style.display = "inline-block";
     loader.style.display = "none";
@@ -127,9 +120,9 @@ window.startCamera = async () => {
         const constraints = {
             video: { 
                 deviceId: devId ? { exact: devId } : undefined,
-                width: { ideal: 640 }, // 모바일 최적화
+                width: { ideal: 640 }, 
                 height: { ideal: 480 },
-                facingMode: "environment" // 후면 카메라 우선
+                facingMode: "environment" 
             }
         };
 
@@ -156,12 +149,10 @@ window.stopCamera = () => {
     video.srcObject = null;
     currentStream = null;
 
-    // UI 복구
     startBtn.style.display = "block";
     stopBtn.style.display = "none";
     loader.style.display = "block";
 };
-
 
 // =====================================
 // 3. 아두이노 (기존 유지)
