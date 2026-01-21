@@ -32,7 +32,7 @@ window.saveApiKey = () => {
     window.closeModal('key-modal');
 };
 
-// [수정] 일반 AI 채팅 (모델: gemini-3-flash-preview)
+// [수정 1] 일반 AI 채팅 (오류 수정됨)
 window.askGemini = async () => {
     const question = document.getElementById('ai-input').value;
     const apiKey = localStorage.getItem("GEMINI_KEY");
@@ -47,10 +47,15 @@ window.askGemini = async () => {
     try {
         const ai = new GoogleGenAI({ apiKey: apiKey });
         const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview", // [수정됨]
+            model: "gemini-3-flash-preview",
             contents: question + " (고등학생에게 설명하듯 쉽고 친절하게)",
         });
-        textDiv.innerText = response.text();
+
+        // [핵심 수정] response.text() -> response.text (괄호 제거)
+        // 만약 response.text가 없으면 candidates 배열에서 직접 가져옴
+        const answer = response.text || response.candidates?.[0]?.content?.parts?.[0]?.text || "답변을 가져올 수 없습니다.";
+        textDiv.innerText = answer;
+
     } catch (error) {
         console.error(error);
         textDiv.innerText = "오류: " + error.message;
@@ -107,7 +112,7 @@ async function sendDataToSheet(payload) {
 }
 
 // =====================================
-// 2. AI 종합 분석 (모델: gemini-3-flash-preview)
+// 2. AI 종합 분석 (오류 수정됨)
 // =====================================
 window.runComprehensiveAnalysis = async () => {
     const apiKey = localStorage.getItem("GEMINI_KEY");
@@ -155,10 +160,14 @@ window.runComprehensiveAnalysis = async () => {
     try {
         const ai = new GoogleGenAI({ apiKey: apiKey });
         const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview", // [수정됨]
+            model: "gemini-3-flash-preview",
             contents: prompt,
         });
-        content.innerText = response.text();
+        
+        // [핵심 수정] response.text() -> response.text 또는 직접 경로 접근
+        const answer = response.text || response.candidates?.[0]?.content?.parts?.[0]?.text || "분석 결과를 가져올 수 없습니다.";
+        content.innerText = answer;
+
     } catch (error) {
         console.error(error);
         content.innerText = "AI 분석 실패: " + error.message;
