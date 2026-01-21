@@ -1,58 +1,59 @@
 // =====================================
-// [필수] 구글 앱스 스크립트 URL
+// [필수] 구글 앱스 스크립트 주소 (반드시 입력!)
 // =====================================
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwMXVBPFTJbRU1x7AI_z1ULPTMTfKwIPgi-fPCrGFGMPtA717L5DxNYfcKHJ3q5v9ip/exec"; 
 
-if (window.location.protocol === 'file:') alert("⚠️ 주의: GitHub Pages로 접속해야 카메라와 기능이 작동합니다.");
+if (window.location.protocol === 'file:') alert("⚠️ GitHub Pages로 접속해야 모든 기능이 정상 작동합니다.");
 
 // =====================================
-// 1. 유틸리티 & API 키 관리 & AI 질문
+// 1. 통합 검색 & 유틸리티
 // =====================================
 function openKeyModal() { document.getElementById('key-modal').classList.remove('hidden'); }
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-function validPos(el) { if(el.value < 0) el.value = 0; }
+function closeAiBox() { document.getElementById('ai-response').classList.add('hidden'); }
+function validPos(el) { if(el.value < 0) el.value = 0; } // 음수 입력 방지
 
 function saveApiKey() {
     const key = document.getElementById('api-key-input').value;
-    if(!key) return alert("키를 입력하세요.");
+    if(!key) return alert("API Key를 입력해주세요.");
     localStorage.setItem("GEMINI_KEY", key);
-    alert("저장되었습니다! 이제 AI에게 질문할 수 있습니다.");
+    alert("저장되었습니다! 이제 상단 검색창에서 AI에게 질문해보세요.");
     closeModal('key-modal');
 }
 
-async function askGemini(zoneId) {
-    const inputId = `ask-${zoneId}`;
-    const outputId = `ans-${zoneId}`;
-    const question = document.getElementById(inputId).value;
+async function askGemini() {
+    const question = document.getElementById('ai-input').value;
     const apiKey = localStorage.getItem("GEMINI_KEY");
 
     if(!question) return alert("질문을 입력하세요.");
-    if(!apiKey) return alert("상단 'AI 설정' 버튼을 눌러 API 키를 먼저 저장해주세요.");
+    if(!apiKey) return alert("설정(⚙️) 버튼을 눌러 API 키를 먼저 등록해주세요.");
 
-    const outputDiv = document.getElementById(outputId);
-    outputDiv.classList.remove('hidden');
-    outputDiv.innerText = "🤖 AI가 생각 중입니다...";
+    const box = document.getElementById('ai-response');
+    const textDiv = document.getElementById('ai-text');
+    box.classList.remove('hidden');
+    textDiv.innerText = "🤖 AI가 생각 중입니다...";
 
     try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: question + " (짧고 쉽게 설명해줘)" }] }] })
+            body: JSON.stringify({ contents: [{ parts: [{ text: question + " (고등학생 수준으로 쉽고 짧게 설명해줘)" }] }] })
         });
         const data = await response.json();
         
         if (data.candidates && data.candidates.length > 0) {
-            outputDiv.innerText = data.candidates[0].content.parts[0].text;
+            textDiv.innerText = data.candidates[0].content.parts[0].text;
         } else {
-            outputDiv.innerText = "답변을 가져올 수 없습니다. API 키를 확인하세요.";
+            textDiv.innerText = "죄송합니다. 답변을 가져오지 못했습니다. (API 키 확인 필요)";
         }
     } catch (error) {
         console.error(error);
-        outputDiv.innerText = "에러 발생: " + error.message;
+        textDiv.innerText = "오류 발생: " + error.message;
     }
 }
 
+// 엑셀 저장
 function downloadCSV(fileName, csvContent) {
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
@@ -65,224 +66,43 @@ function downloadCSV(fileName, csvContent) {
 }
 
 // =====================================
-// 2. AI 카메라
-// =====================================
-const URL_PATH = "./my_model/"; 
-let model, maxPredictions, isRunning = false;
-
-window.addEventListener('load', async () => {
-    // 초기화 작업
-    addRow(); addRow(); 
-    
-    // 카메라 권한 미리 체크 (안전하게)
-    const select = document.getElementById('camera-select');
-    try {
-        const s = await navigator.mediaDevices.getUserMedia({video:true});
-        s.getTracks().forEach(t=>t.stop());
-        const d = await navigator.mediaDevices.enumerateDevices();
-        const v = d.filter(k=>k.kind==='videoinput');
-        select.innerHTML = '';
-        if(v.length===0) { select.innerHTML='<option disabled>카메라 없음</option>'; return; }
-        v.forEach((dev,i)=>{
-            const opt=document.createElement('option');
-            opt.value=dev.deviceId; opt.text=dev.label||`카메라 ${i+1}`;
-            select.appendChild(opt);
-        });
-        if(v.length>1) select.selectedIndex=v.length-1;
-    } catch(e){ 
-        console.log("카메라 권한 대기중"); 
-        select.innerHTML='<option>권한 필요</option>'; 
-    }
-});
-
-async function startCamera() {
-    if(isRunning) return alert("이미 켜져 있음");
-    const btn=document.getElementById("startBtn");
-    btn.innerText="모델 로딩..."; btn.disabled=true;
-    try {
-        model = await tmImage.load(URL_PATH+"model.json", URL_PATH+"metadata.json");
-        maxPredictions = model.getTotalClasses();
-        const devId = document.getElementById("camera-select").value;
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video:{deviceId:devId?{exact:devId}:undefined, width:640, height:480}
-        });
-        const video = document.getElementById("video-element");
-        video.srcObject = stream;
-        video.onloadedmetadata = ()=>{
-            video.play(); isRunning=true;
-            document.getElementById('loader-text').style.display="none";
-            btn.innerHTML='<i class="fa-solid fa-check"></i> 작동 중'; btn.style.background="#2e7d32";
-            predictLoop();
-        };
-    } catch(e) { alert("오류: "+e.message); btn.innerText="재시도"; btn.disabled=false; }
-}
-
-async function predictLoop() {
-    if(!isRunning) return;
-    const v=document.getElementById("video-element");
-    const c=document.getElementById("canvas-element");
-    const ctx=c.getContext("2d");
-    if(c.width!==v.videoWidth) {c.width=v.videoWidth; c.height=v.videoHeight;}
-    ctx.drawImage(v,0,0,c.width,c.height);
-    if(model){
-        const p = await model.predict(v);
-        const con = document.getElementById("label-container");
-        con.innerHTML="";
-        p.sort((a,b)=>b.probability-a.probability);
-        for(let i=0; i<3; i++){
-            const prob=(p[i].probability*100).toFixed(1);
-            if(prob>5) con.innerHTML+=`<div class="label-item"><div style="display:flex;justify-content:space-between;"><strong>${p[i].className}</strong><span style="color:#2e7d32">${prob}%</span></div><div class="progress-bg"><div class="progress-fill" style="width:${prob}%"></div></div></div>`;
-        }
-    }
-    requestAnimationFrame(predictLoop);
-}
-
-// =====================================
-// 3. 아두이노
-// =====================================
-let port, keepReading=false;
-let sensorDataLog=[], recordInterval=null;
-let currentVal={t:"-", h:"-", l:"-", s:"-"};
-
-async function connectArduino() {
-    if(!navigator.serial) return alert("PC 크롬에서만 가능");
-    try {
-        port = await navigator.serial.requestPort();
-        await port.open({baudRate:9600});
-        document.getElementById('connectBtn').innerText="✅";
-        document.getElementById('connectBtn').disabled=true;
-        document.getElementById('recordBtn').disabled=false;
-        document.getElementById('record-status').innerText="데이터 수신 중...";
-        keepReading=true; readSerial();
-    } catch(e){console.log(e);}
-}
-
-async function readSerial() {
-    const decoder = new TextDecoderStream();
-    port.readable.pipeTo(decoder.writable);
-    const reader = decoder.readable.getReader();
-    let buffer = "";
-    try {
-        while(keepReading) {
-            const {value, done} = await reader.read();
-            if(done) break;
-            if(value) {
-                buffer += value;
-                const lines = buffer.split("\n");
-                buffer = lines.pop();
-                for(const line of lines) {
-                    const parts = line.trim().split(",");
-                    if(parts.length >= 4) {
-                        currentVal = {t:parts[0], h:parts[1], l:parts[2], s:parts[3]};
-                        document.getElementById('val-temp').innerText = currentVal.t;
-                        document.getElementById('val-humid').innerText = currentVal.h;
-                        document.getElementById('val-light').innerText = currentVal.l;
-                        document.getElementById('val-soil').innerText = currentVal.s;
-                        updateLightDescription(parseInt(currentVal.l));
-                    }
-                }
-            }
-        }
-    } catch(e){console.error(e);}
-}
-
-function updateLightDescription(lux) {
-    const el = document.getElementById('desc-light');
-    let text="", color="#666";
-    if (lux < 300) { text="음지"; color="#5c6bc0"; }
-    else if (lux < 700) { text="반음지"; color="#ffb74d"; }
-    else { text="양지"; color="#e65100"; }
-    el.innerText = text; el.style.backgroundColor = color; el.style.color="white";
-}
-
-function startRecording() {
-    sensorDataLog=[["시간","온도","습도","조도","토양습도"]];
-    document.getElementById('recordBtn').disabled=true;
-    document.getElementById('saveRecordBtn').disabled=false;
-    document.getElementById('record-status').innerText="기록 중...";
-    recordInterval = setInterval(()=>{
-        sensorDataLog.push([new Date().toLocaleTimeString(), currentVal.t, currentVal.h, currentVal.l, currentVal.s]);
-    },1000);
-}
-function stopAndSaveRecording() {
-    clearInterval(recordInterval);
-    document.getElementById('recordBtn').disabled=false;
-    document.getElementById('saveRecordBtn').disabled=true;
-    document.getElementById('record-status').innerText="완료";
-    let csv=""; sensorDataLog.forEach(r=>csv+=r.join(",")+"\n");
-    downloadCSV("환경데이터.csv", csv);
-}
-
-// =====================================
-// 4. 방형구법
-// =====================================
-function addRow() {
-    const d=document.createElement('div'); d.className='list-item';
-    d.innerHTML=`<div class="list-inputs"><input type="text" class="p-name" placeholder="식물명"><input type="number" class="p-count" placeholder="개체수" min="0" oninput="validPos(this)"><input type="number" class="p-freq" placeholder="방형구" min="0" oninput="validPos(this)"><input type="number" class="p-cover" placeholder="피도" min="0" max="5" oninput="validPos(this)"></div><button onclick="this.parentElement.remove()" class="btn-del"><i class="fa-solid fa-trash"></i></button>`;
-    document.getElementById('inputList').appendChild(d);
-}
-function calculate() {
-    const totalQ=Math.abs(parseFloat(document.getElementById('totalQuadrats').value))||10;
-    const items=document.querySelectorAll('.list-item');
-    let data=[], sD=0, sF=0, sC=0;
-    items.forEach(i=>{
-        const n=i.querySelector('.p-name').value;
-        const c=Math.abs(parseFloat(i.querySelector('.p-count').value)||0);
-        const f=Math.abs(parseFloat(i.querySelector('.p-freq').value)||0);
-        let cv=Math.abs(parseFloat(i.querySelector('.p-cover').value)||0);
-        if(cv>5)cv=5;
-        if(n){ data.push({n, c, fV:f/totalQ, cv}); sD+=c; sF+=(f/totalQ); sC+=cv; }
-    });
-    if(data.length===0) return alert("데이터 입력 필요");
-    const tbody=document.getElementById('resultBody'); tbody.innerHTML="";
-    let maxIV=0, domName="";
-    data=data.map(d=>{
-        const rD = (sD===0) ? 0 : (d.c / sD) * 100;
-        const rF = (sF===0) ? 0 : (d.fV / sF) * 100;
-        const rC = (sC===0) ? 0 : (d.cv / sC) * 100;
-        const iv = rD + rF + rC;
-        if(iv>maxIV){maxIV=iv; domName=d.n;}
-        return{...d, iv};
-    }).sort((a,b)=>b.iv-a.iv);
-    data.forEach((d,i)=>tbody.innerHTML+=`<tr><td>${i+1}</td><td>${d.n}</td><td>${d.iv.toFixed(1)}</td></tr>`);
-    document.getElementById('dominant-species').innerText=domName;
-    document.getElementById('dominant-iv').innerText="IV: "+maxIV.toFixed(1);
-    document.getElementById('result-modal').classList.remove('hidden');
-}
-function downloadResultCSV() {
-    let csv="[입력 데이터]\n전체 방형구 수,"+document.getElementById('totalQuadrats').value+"\n식물명,개체수,출현 방형구,피도\n";
-    document.querySelectorAll('.list-item').forEach(i=>{
-        const n=i.querySelector('.p-name').value;
-        if(n) csv+=`${n},${i.querySelector('.p-count').value},${i.querySelector('.p-freq').value},${i.querySelector('.p-cover').value}\n`;
-    });
-    csv+="\n[분석 결과]\n순위,우점종,종이름,중요치(IV)\n";
-    const rows=document.getElementById('resultBody').querySelectorAll('tr');
-    if(rows.length===0)return alert("결과 없음");
-    rows.forEach(r=>{
-        const c=r.querySelectorAll('td');
-        csv+=`${c[0].innerText},${c[0].innerText==='1'?'WIN':''},${c[1].innerText},${c[2].innerText}\n`;
-    });
-    downloadCSV("통합보고서.csv", csv);
-}
-
-// =====================================
-// 5. 퀴즈
+// 2. 퀴즈 기능 (상세 기록 + 페이징)
 // =====================================
 let currentQuizType="", studentInfo={id:"", name:""};
 let quizQuestions=[], selectedAnswers=[], quizTimer=null, timeLeft=300;
 
-// 문제 데이터 (10개 예시)
+// 문제 데이터 (각 문제에 ID 부여)
 const fullQuestionPool = [
-    { q: "일정한 지역에 모여 사는 '같은 종'의 개체 집단은?", a: 0, h: "종이 같아야 합니다.", opts: ["개체군", "군집", "생태계", "생물권"] },
-    { q: "여러 종의 개체군들이 모여 이룬 집단은?", a: 2, h: "개체군들의 모임입니다.", opts: ["개체", "개체군", "군집", "환경"] },
-    { q: "식물 군집 조사 시 사용하는 1mx1m 틀은?", a: 0, h: "사각형 모양의 틀입니다.", opts: ["방형구", "원형구", "프레파라트", "샬레"] },
-    { q: "방형구법으로 알 수 없는 지표는?", a: 3, h: "지능은 측정할 수 없습니다.", opts: ["밀도", "빈도", "피도", "지능"] },
-    { q: "특정 종의 개체 수를 전체 면적으로 나눈 값은?", a: 0, h: "빽빽한 정도.", opts: ["밀도", "빈도", "피도", "중요치"] },
-    { q: "특정 종이 출현한 방형구 수를 전체 방형구 수로 나눈 것은?", a: 1, h: "얼마나 자주 출현하는가?", opts: ["밀도", "빈도", "피도", "상대밀도"] },
-    { q: "지표면을 덮고 있는 면적의 비율은?", a: 2, h: "덮을 피(被) 자를 씁니다.", opts: ["밀도", "빈도", "피도", "중요치"] },
-    { q: "군집을 대표하는 가장 우세한 종은?", a: 1, h: "우수하고 점령한 종.", opts: ["희소종", "우점종", "지표종", "외래종"] },
-    { q: "중요치(IV) 공식으로 옳은 것은?", a: 1, h: "상대값 3개의 합.", opts: ["밀도+빈도+피도", "상대밀도+상대빈도+상대피도", "밀도x빈도", "상대밀도/상대피도"] },
-    { q: "모든 종의 상대밀도 합은?", a: 2, h: "전체는 100%입니다.", opts: ["10%", "50%", "100%", "300%"] }
+    { id: 1, q: "일정한 지역에 모여 사는 '같은 종'의 개체 집단은?", a: 0, h: "종이 같아야 합니다.", opts: ["개체군", "군집", "생태계", "생물권"] },
+    { id: 2, q: "여러 종의 개체군들이 모여 이룬 집단은?", a: 2, h: "개체군들의 모임입니다.", opts: ["개체", "개체군", "군집", "환경"] },
+    { id: 3, q: "식물 군집 조사 시 사용하는 1mx1m 틀은?", a: 0, h: "사각형 모양의 틀입니다.", opts: ["방형구", "원형구", "프레파라트", "샬레"] },
+    { id: 4, q: "방형구법으로 알 수 없는 지표는?", a: 3, h: "식물의 수나 분포와 관련 없는 것입니다.", opts: ["밀도", "빈도", "피도", "지능"] },
+    { id: 5, q: "특정 종의 개체 수를 전체 면적으로 나눈 값은?", a: 0, h: "빽빽한 정도입니다.", opts: ["밀도", "빈도", "피도", "중요치"] },
+    { id: 6, q: "특정 종이 출현한 방형구 수를 전체 방형구 수로 나눈 것은?", a: 1, h: "얼마나 자주 나타나는가?", opts: ["밀도", "빈도", "피도", "상대밀도"] },
+    { id: 7, q: "지표면을 덮고 있는 면적의 비율은?", a: 2, h: "식물이 땅을 덮은 정도입니다.", opts: ["밀도", "빈도", "피도", "중요치"] },
+    { id: 8, q: "중요치가 가장 높아 군집을 대표하는 종은?", a: 1, h: "우세하여 점령한 종입니다.", opts: ["희소종", "우점종", "지표종", "외래종"] },
+    { id: 9, q: "중요치(IV)를 구하는 올바른 공식은?", a: 1, h: "상대값 3가지를 더합니다.", opts: ["밀도+빈도+피도", "상대밀도+상대빈도+상대피도", "밀도x빈도x피도", "상대밀도/상대피도"] },
+    { id: 10, q: "모든 종의 상대밀도 합은 얼마인가?", a: 2, h: "전체 비율의 합입니다.", opts: ["10%", "50%", "100%", "300%"] },
+    { id: 11, q: "군집 내 모든 종의 중요치 합은?", a: 2, h: "100이 3개 모이면?", opts: ["100", "200", "300", "알 수 없다"] },
+    { id: 12, q: "방형구 설치의 가장 중요한 원칙은?", a: 1, h: "주관이 들어가면 안 됩니다.", opts: ["식물이 많은 곳", "무작위(랜덤)", "평평한 곳", "꽃이 있는 곳"] },
+    { id: 13, q: "경계선에 걸친 식물을 세는 일반적 규칙은?", a: 2, h: "두 면은 포함, 두 면은 제외.", opts: ["모두 셈", "안 셈", "두 면(ㄴ자)만 포함", "큰 것만 셈"] },
+    { id: 14, q: "특정 환경 조건을 알려주는 종은?", a: 2, h: "환경의 지표가 됩니다.", opts: ["우점종", "핵심종", "지표종", "희소종"] },
+    { id: 15, q: "두 개체군이 모두 이익을 얻는 상호작용은?", a: 2, h: "서로에게 이득입니다.", opts: ["경쟁", "기생", "상리공생", "편리공생"] },
+    { id: 16, q: "경쟁에서 진 종이 사라지는 현상은?", a: 0, h: "배타적으로 밀려납니다.", opts: ["경쟁 배타", "분서", "공생", "천이"] },
+    { id: 17, q: "경쟁을 피하기 위해 먹이나 서식지를 나누는 것은?", a: 1, h: "나누어 서식합니다.", opts: ["경쟁 배타", "분서", "포식", "기생"] },
+    { id: 18, q: "한쪽만 이익을 얻고 다른 쪽은 영향이 없는 공생은?", a: 3, h: "한쪽만 편리합니다.", opts: ["상리공생", "기생", "포식", "편리공생"] },
+    { id: 19, q: "개체 수는 적지만 생태계 유지에 결정적인 종은?", a: 1, h: "아치형 다리의 핵심 돌.", opts: ["우점종", "핵심종", "지표종", "희소종"] },
+    { id: 20, q: "맨땅(불모지)에서 시작되는 천이는?", a: 0, h: "처음 시작하는 천이입니다.", opts: ["1차 천이", "2차 천이", "습성 천이", "음수림"] },
+    { id: 21, q: "기존 식생이 파괴된 곳(산불 등)에서 시작되는 천이는?", a: 1, h: "두 번째 기회입니다.", opts: ["1차 천이", "2차 천이", "건성 천이", "습성 천이"] },
+    { id: 22, q: "천이의 마지막 안정된 상태는?", a: 1, h: "최고조(Climax)에 달했습니다.", opts: ["개척자", "극상", "초원", "관목림"] },
+    { id: 23, q: "건성 천이의 개척자는?", a: 1, h: "바위의 옷이라 불립니다.", opts: ["이끼", "지의류", "초본", "관목"] },
+    { id: 24, q: "숲의 가장 위쪽 층은?", a: 3, h: "키가 큰 나무 층입니다.", opts: ["지표층", "초본층", "관목층", "교목층"] },
+    { id: 25, q: "피도 계급을 정하는 적절한 방법은?", a: 1, h: "정확한 면적보다는 비율로.", opts: ["정밀 측정", "눈대중 비율 등급화", "키 기준", "개체수 기준"] },
+    { id: 26, q: "타감 작용의 예시는?", a: 1, h: "화학물질로 경쟁자를 억제합니다.", opts: ["꽃과 벌", "소나무 밑 잡초 억제", "사자와 사슴", "콩과 뿌리혹박테리아"] },
+    { id: 27, q: "방형구법의 최종 목적은?", a: 1, h: "누가 주인인지 알아봅니다.", opts: ["광합성 측정", "우점종 및 군집구조 파악", "미생물 조사", "신품종 개발"] },
+    { id: 28, q: "A종(밀도10), B종(30), C종(10)일 때 A의 상대밀도는?", a: 1, h: "10 / (10+30+10)", opts: ["10%", "20%", "33%", "50%"] },
+    { id: 29, q: "빈도가 0.5라는 의미는?", a: 1, h: "절반의 확률입니다.", opts: ["50개 발견", "방형구 2개 중 1개 꼴로 발견", "면적의 50% 차지", "중요치 50"] },
+    { id: 30, q: "지표종의 예시로 적절한 것은?", a: 0, h: "오염된 곳에서 삽니다.", opts: ["SO2 오염지의 지의류", "참나무", "토끼풀", "강아지풀"] }
 ];
 
 function openLoginModal(type) {
@@ -297,10 +117,13 @@ function startRealQuiz() {
     const id = document.getElementById('student-id').value;
     const name = document.getElementById('student-name').value;
     if(!id || !name) return alert("학번과 이름을 입력해주세요.");
+    // 음수 체크
+    if(parseInt(id) < 0) return alert("학번은 양수여야 합니다.");
     
     studentInfo = { id, name };
     closeModal('login-modal');
     
+    // 퀴즈 초기화
     document.getElementById('quiz-modal').classList.remove('hidden');
     document.getElementById('quiz-type-title').innerText = currentQuizType;
     document.getElementById('quiz-page-1').classList.remove('hidden');
@@ -309,13 +132,15 @@ function startRealQuiz() {
     document.getElementById('next-page-btn').classList.remove('hidden');
     document.getElementById('submit-quiz-btn').classList.add('hidden');
     
+    // 30문제 중 10개 랜덤 선택 (ID 포함)
     quizQuestions = fullQuestionPool.sort(() => 0.5 - Math.random()).slice(0, 10);
     selectedAnswers = new Array(10).fill(-1);
     
     renderQuestions('quiz-page-1', 0, 5);
     renderQuestions('quiz-page-2', 5, 10);
     
-    timeLeft = 300;
+    // 타이머 (5분 = 300초)
+    timeLeft = 300; 
     updateTimerDisplay();
     if(quizTimer) clearInterval(quizTimer);
     quizTimer = setInterval(() => {
@@ -373,7 +198,7 @@ function updateTimerDisplay() {
 }
 function quizTimeout() {
     clearInterval(quizTimer);
-    alert("시간 초과! 다음 기회에...");
+    alert("시간이 초과되었습니다! 다음 기회에 도전하세요.");
     closeModal('quiz-modal');
     sendToGoogleSheet(0, "통과 못함 (시간초과)", "미제출");
 }
@@ -384,7 +209,8 @@ function submitQuiz() {
     quizQuestions.forEach((q,i)=>{
         const correct = (q.a === selectedAnswers[i]);
         if(correct) score+=10;
-        ansStr += `Q${i+1}(${correct?'O':'X'}) `;
+        // 구글 시트에 질문 요약과 함께 저장 (예: [문제3]... (O))
+        ansStr += `[Q${i+1}. ${q.q.substring(0, 10)}...](${correct?'O':'X'}) / `;
     });
     let level="노력 요함 (하)";
     if(score>=80) level="매우 우수 (상)";
@@ -401,4 +227,196 @@ function sendToGoogleSheet(score, level, answers) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
     });
+}
+
+// =====================================
+// 3. AI 카메라
+// =====================================
+const URL_PATH = "./my_model/"; 
+let model, maxPredictions, isRunning = false;
+
+window.addEventListener('load', async () => {
+    addRow(); addRow(); 
+    const select = document.getElementById('camera-select');
+    try {
+        const s = await navigator.mediaDevices.getUserMedia({video:true});
+        s.getTracks().forEach(t=>t.stop());
+        const d = await navigator.mediaDevices.enumerateDevices();
+        const v = d.filter(k=>k.kind==='videoinput');
+        select.innerHTML = '';
+        if(v.length===0) { select.innerHTML='<option disabled>카메라 없음</option>'; return; }
+        v.forEach((dev,i)=>{
+            const opt=document.createElement('option');
+            opt.value=dev.deviceId; opt.text=dev.label||`카메라 ${i+1}`;
+            select.appendChild(opt);
+        });
+        if(v.length>1) select.selectedIndex=v.length-1;
+    } catch(e){ select.innerHTML='<option>권한 필요</option>'; }
+});
+
+async function startCamera() {
+    if(isRunning) return alert("이미 켜져 있음");
+    const btn=document.getElementById("startBtn");
+    btn.innerText="모델 로딩..."; btn.disabled=true;
+    try {
+        model = await tmImage.load(URL_PATH+"model.json", URL_PATH+"metadata.json");
+        maxPredictions = model.getTotalClasses();
+        const devId = document.getElementById("camera-select").value;
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video:{deviceId:devId?{exact:devId}:undefined, width:640, height:480}
+        });
+        const video = document.getElementById("video-element");
+        video.srcObject = stream;
+        video.onloadedmetadata = ()=>{
+            video.play(); isRunning=true;
+            document.getElementById('loader-text').style.display="none";
+            btn.innerHTML='<i class="fa-solid fa-check"></i> 작동 중'; btn.style.background="#66bb6a";
+            predictLoop();
+        };
+    } catch(e) { alert("오류: "+e.message); btn.innerText="재시도"; btn.disabled=false; }
+}
+
+async function predictLoop() {
+    if(!isRunning) return;
+    const v=document.getElementById("video-element");
+    const c=document.getElementById("canvas-element");
+    const ctx=c.getContext("2d");
+    if(c.width!==v.videoWidth) {c.width=v.videoWidth; c.height=v.videoHeight;}
+    ctx.drawImage(v,0,0,c.width,c.height);
+    if(model){
+        const p = await model.predict(v);
+        const con = document.getElementById("label-container");
+        con.innerHTML="";
+        p.sort((a,b)=>b.probability-a.probability);
+        for(let i=0; i<3; i++){
+            const prob=(p[i].probability*100).toFixed(1);
+            if(prob>5) con.innerHTML+=`<div class="label-item"><div style="display:flex;justify-content:space-between;"><strong>${p[i].className}</strong><span style="color:#2e7d32">${prob}%</span></div><div class="progress-bg"><div class="progress-fill" style="width:${prob}%"></div></div></div>`;
+        }
+    }
+    requestAnimationFrame(predictLoop);
+}
+
+// =====================================
+// 4. 아두이노
+// =====================================
+let port, keepReading=false, reader;
+let sensorDataLog=[], recordInterval=null;
+let currentVal={t:"-", h:"-", l:"-", s:"-"};
+
+async function connectArduino() {
+    if(!navigator.serial) return alert("PC 크롬에서만 가능");
+    try {
+        port = await navigator.serial.requestPort();
+        await port.open({baudRate:9600});
+        document.getElementById('connectBtn').innerText="✅";
+        document.getElementById('connectBtn').disabled=true;
+        document.getElementById('recordBtn').disabled=false;
+        document.getElementById('record-status').innerText="수신 중...";
+        keepReading=true; readSerial();
+    } catch(e){console.log(e);}
+}
+
+async function readSerial() {
+    const decoder = new TextDecoderStream();
+    port.readable.pipeTo(decoder.writable);
+    const reader = decoder.readable.getReader();
+    let buffer = "";
+    try {
+        while(keepReading) {
+            const {value, done} = await reader.read();
+            if(done) break;
+            if(value) {
+                buffer += value;
+                const lines = buffer.split("\n");
+                buffer = lines.pop();
+                for(const line of lines) {
+                    const parts = line.trim().split(",");
+                    if(parts.length >= 4) {
+                        currentVal = {t:parts[0], h:parts[1], l:parts[2], s:parts[3]};
+                        document.getElementById('val-temp').innerText = currentVal.t;
+                        document.getElementById('val-humid').innerText = currentVal.h;
+                        document.getElementById('val-light').innerText = currentVal.l;
+                        document.getElementById('val-soil').innerText = currentVal.s;
+                        updateLightDescription(parseInt(currentVal.l));
+                    }
+                }
+            }
+        }
+    } catch(e){console.error(e);}
+}
+
+function updateLightDescription(lux) {
+    const el = document.getElementById('desc-light');
+    let text="", color="#666";
+    if (lux < 300) { text="음지"; color="#5c6bc0"; }
+    else if (lux < 700) { text="반음지"; color="#ffb74d"; }
+    else { text="양지"; color="#ef6c00"; }
+    el.innerText = text; el.style.backgroundColor = color; el.style.color="white";
+}
+
+function startRecording() {
+    sensorDataLog=[["시간","온도","습도","조도","토양습도"]];
+    document.getElementById('recordBtn').disabled=true;
+    document.getElementById('saveRecordBtn').disabled=false;
+    document.getElementById('record-status').innerText="기록 중...";
+    recordInterval = setInterval(()=>{
+        sensorDataLog.push([new Date().toLocaleTimeString(), currentVal.t, currentVal.h, currentVal.l, currentVal.s]);
+    },1000);
+}
+function stopAndSaveRecording() {
+    clearInterval(recordInterval);
+    document.getElementById('recordBtn').disabled=false;
+    document.getElementById('saveRecordBtn').disabled=true;
+    document.getElementById('record-status').innerText="완료";
+    let csv=""; sensorDataLog.forEach(r=>csv+=r.join(",")+"\n");
+    downloadCSV("환경데이터.csv", csv);
+}
+
+// =====================================
+// 5. 방형구법
+// =====================================
+function addRow() {
+    const d=document.createElement('div'); d.className='list-item';
+    d.innerHTML=`<div class="list-inputs"><input type="text" class="p-name" placeholder="식물명"><input type="number" class="p-count" placeholder="개체수" min="0" oninput="validPos(this)"><input type="number" class="p-freq" placeholder="방형구" min="0" oninput="validPos(this)"><input type="number" class="p-cover" placeholder="피도" min="0" max="5" oninput="validPos(this)"></div><button onclick="this.parentElement.remove()" class="btn-del"><i class="fa-solid fa-trash"></i></button>`;
+    document.getElementById('inputList').appendChild(d);
+}
+function calculate() {
+    const totalQ=Math.abs(parseFloat(document.getElementById('totalQuadrats').value))||10;
+    const items=document.querySelectorAll('.list-item');
+    let data=[], sD=0, sF=0, sC=0;
+    items.forEach(i=>{
+        const n=i.querySelector('.p-name').value;
+        const c=Math.abs(parseFloat(i.querySelector('.p-count').value)||0);
+        const f=Math.abs(parseFloat(i.querySelector('.p-freq').value)||0);
+        let cv=Math.abs(parseFloat(i.querySelector('.p-cover').value)||0);
+        if(cv>5)cv=5;
+        if(n){ data.push({n, c, fV:f/totalQ, cv}); sD+=c; sF+=(f/totalQ); sC+=cv; }
+    });
+    if(data.length===0) return alert("데이터 입력 필요");
+    const tbody=document.getElementById('resultBody'); tbody.innerHTML="";
+    let maxIV=0, domName="";
+    data=data.map(d=>{
+        const iv=((d.c/sD)*100)+((d.fV/sF)*100)+((d.cv/sC)*100);
+        if(iv>maxIV){maxIV=iv; domName=d.n;}
+        return{...d, iv};
+    }).sort((a,b)=>b.iv-a.iv);
+    data.forEach((d,i)=>tbody.innerHTML+=`<tr><td>${i+1}</td><td>${d.n}</td><td>${d.iv.toFixed(1)}</td></tr>`);
+    document.getElementById('dominant-species').innerText=domName;
+    document.getElementById('dominant-iv').innerText="IV: "+maxIV.toFixed(1);
+    document.getElementById('result-modal').classList.remove('hidden');
+}
+function downloadResultCSV() {
+    let csv="[입력 데이터]\n전체 방형구 수,"+document.getElementById('totalQuadrats').value+"\n식물명,개체수,출현 방형구,피도\n";
+    document.querySelectorAll('.list-item').forEach(i=>{
+        const n=i.querySelector('.p-name').value;
+        if(n) csv+=`${n},${i.querySelector('.p-count').value},${i.querySelector('.p-freq').value},${i.querySelector('.p-cover').value}\n`;
+    });
+    csv+="\n[분석 결과]\n순위,우점종,종이름,중요치(IV)\n";
+    const rows=document.getElementById('resultBody').querySelectorAll('tr');
+    if(rows.length===0)return alert("결과 없음");
+    rows.forEach(r=>{
+        const c=r.querySelectorAll('td');
+        csv+=`${c[0].innerText},${c[0].innerText==='1'?'WIN':''},${c[1].innerText},${c[2].innerText}\n`;
+    });
+    downloadCSV("통합보고서.csv", csv);
 }
