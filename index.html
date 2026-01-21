@@ -9,11 +9,7 @@
     <link rel="stylesheet" href="style.css">
     
     <script type="importmap">
-      {
-        "imports": {
-          "@google/genai": "https://esm.run/@google/genai"
-        }
-      }
+      { "imports": { "@google/genai": "https://esm.run/@google/genai" } }
     </script>
 </head>
 <body>
@@ -53,16 +49,13 @@
             <h2>식물 관찰 카메라</h2>
             <select id="camera-select" class="mini-select" onchange="changeCamera()"></select>
         </div>
-        
         <div class="camera-frame">
             <video id="video-element" autoplay playsinline muted></video>
-            
             <div id="loader-text" class="placeholder">
                 <i class="fa-solid fa-camera fa-2x"></i>
                 <p>Start 버튼을 눌러주세요</p>
             </div>
         </div>
-        
         <div class="control-group">
             <button id="startBtn" onclick="startCamera()" class="btn-main full-width">
                 <i class="fa-solid fa-play"></i> 카메라 켜기
@@ -85,11 +78,11 @@
             <div class="sensor-box"><span class="s-label">토양</span><span class="s-val" id="val-soil">--</span><span class="s-unit">%</span></div>
         </div>
         <div class="control-group">
-            <button onclick="connectArduino()" class="btn-round dark" id="connectBtn">📡 연결 (PC전용)</button>
+            <button onclick="connectArduino()" class="btn-round dark" id="connectBtn">📡 연결</button>
             <button onclick="startRecording()" class="btn-round red" id="recordBtn" disabled>🔴 기록</button>
             <button onclick="stopAndSaveRecording()" class="btn-round blue" id="saveRecordBtn" disabled>💾 저장</button>
         </div>
-        <div id="record-status" class="status-msg">센서 연결 대기 중...</div>
+        <div id="record-status" class="status-msg">아두이노 연결 대기 중...</div>
     </section>
 
     <section class="card-panel theme-purple">
@@ -104,6 +97,12 @@
         <div id="inputList" class="list-container"></div>
         <button onclick="addRow()" class="btn-dashed">+ 종 추가하기</button>
         <button onclick="calculate()" class="btn-main full-width mt-15">📊 결과 분석하기</button>
+    </section>
+
+    <section class="ai-analysis-section">
+        <button onclick="runComprehensiveAnalysis()" class="big-btn" id="ai-analyze-btn">
+            ✨ AI 생태 종합 분석 (CLICK)
+        </button>
     </section>
 
     <div id="key-modal" class="modal hidden">
@@ -151,8 +150,16 @@
             <h3>분석 결과</h3>
             <div class="winner-card"><p>우점종</p><h1 id="dominant-species">-</h1><span id="dominant-iv">IV: 0</span></div>
             <div class="table-scroll"><table id="resultTable"><thead><tr><th>순위</th><th>종</th><th>IV</th></tr></thead><tbody id="resultBody"></tbody></table></div>
-            <button onclick="downloadResultCSV()" class="btn-main full-width">결과 저장 (Excel)</button>
+            <button onclick="downloadResultCSV()" class="btn-main full-width">결과 저장 (Excel + Sheet)</button>
             <button onclick="closeModal('result-modal')" class="btn-text">닫기</button>
+        </div>
+    </div>
+
+    <div id="ai-report-modal" class="modal hidden">
+        <div class="modal-box large">
+            <h3>🤖 AI 생태 보고서</h3>
+            <div id="ai-report-content" class="report-text">분석 중...</div>
+            <button onclick="closeModal('ai-report-modal')" class="btn-text">닫기</button>
         </div>
     </div>
 

@@ -1,12 +1,20 @@
 // =====================================
-// [필수] 구글 앱스 스크립트 주소 (필요시 수정)
+// [필수] 구글 앱스 스크립트 URL 입력
 // =====================================
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwMXVBPFTJbRU1x7AI_z1ULPTMTfKwIPgi-fPCrGFGMPtA717L5DxNYfcKHJ3q5v9ip/exec"; 
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzDoJXUdQ5QHGvhEHckBnEtslsQdpBlc2NQygMAmco8f8zyG6eiaUc_yaIysT8ZlXBsiA/exec"; 
 
 import { GoogleGenAI } from "@google/genai";
 
-// ⚠️ HTTPS 환경(GitHub Pages 등)에서만 카메라가 작동합니다.
-if (window.location.protocol === 'file:') alert("⚠️ 보안 정책상 로컬 파일에서는 카메라가 켜지지 않을 수 있습니다.\nGitHub Pages나 로컬 서버(Live Server)를 이용하세요.");
+if (window.location.protocol === 'file:') alert("⚠️ 로컬 파일에서는 카메라 권한이 제한될 수 있습니다.");
+
+// 전역 변수 (데이터 저장 상태)
+let isEnvSaved = false;
+let isQuadratSaved = false;
+let isQuizSaved = false;
+let currentEnvData = {};
+let currentQuadratData = {};
+let currentQuizData = {};
+let studentInfo = { id: "", name: "" };
 
 // =====================================
 // 1. 유틸리티 & 설정
@@ -20,38 +28,31 @@ window.saveApiKey = () => {
     const key = document.getElementById('api-key-input').value;
     if(!key) return alert("키를 입력하세요.");
     localStorage.setItem("GEMINI_KEY", key);
-    alert("저장되었습니다! 이제 검색창을 이용해보세요.");
+    alert("저장되었습니다! 이제 AI 기능을 사용할 수 있습니다.");
     window.closeModal('key-modal');
 };
 
-// [수정] 최신 Google GenAI SDK 적용 (gemini-3-flash-preview)
 window.askGemini = async () => {
     const question = document.getElementById('ai-input').value;
     const apiKey = localStorage.getItem("GEMINI_KEY");
-
     if(!question) return alert("질문을 입력하세요.");
     if(!apiKey) return alert("상단 ⚙️ 버튼을 눌러 API 키를 먼저 입력해주세요.");
 
     const box = document.getElementById('ai-response');
     const textDiv = document.getElementById('ai-text');
     box.classList.remove('hidden');
-    textDiv.innerText = "🤖 AI(Gemini 3)가 생각 중...";
+    textDiv.innerText = "🤖 AI가 생각 중...";
 
     try {
-        // 사용자가 제공한 코드 스타일 적용
         const ai = new GoogleGenAI({ apiKey: apiKey });
-
         const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
-            contents: question + " (고등학생에게 설명하듯 쉽고 짧게 한국어로)",
+            model: "gemini-1.5-flash",
+            contents: question + " (고등학생에게 설명하듯 쉽고 친절하게)",
         });
-
-        // SDK의 응답 형태 처리
-        textDiv.innerText = response.text; 
-
+        textDiv.innerText = response.text();
     } catch (error) {
         console.error(error);
-        textDiv.innerText = "오류 발생: " + error.message + "\n(모델명이나 API키를 확인해주세요)";
+        textDiv.innerText = "오류: " + error.message;
     }
 };
 
@@ -66,158 +67,197 @@ window.downloadCSV = (fileName, csvContent) => {
     document.body.removeChild(link);
 };
 
+// [핵심] 구글 시트로 데이터 전송
+async function sendDataToSheet(payload) {
+    if (GOOGLE_SCRIPT_URL.includes("여기에")) {
+        alert("script.js 맨 윗줄에 구글 앱스 스크립트 URL을 넣어주세요!");
+        return false;
+    }
+
+    // 학생 정보 확인
+    if (!studentInfo.id || !studentInfo.name) {
+        const id = prompt("학번을 입력해주세요 (예: 20513)");
+        const name = prompt("이름을 입력해주세요");
+        if (!id || !name) {
+            alert("정보가 없어 저장할 수 없습니다.");
+            return false;
+        }
+        studentInfo = { id, name };
+    }
+
+    const finalData = { ...payload, id: studentInfo.id, name: studentInfo.name };
+
+    try {
+        await fetch(GOOGLE_SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(finalData)
+        });
+        
+        if(payload.type !== 'quiz') {
+            alert(`✅ ${studentInfo.name}님의 데이터가 저장되었습니다!`);
+        }
+        return true;
+    } catch (error) {
+        console.error(error);
+        alert("저장 실패: 인터넷 연결을 확인하세요.");
+        return false;
+    }
+}
+
 // =====================================
-// 2. 카메라 (단순화: AI 분류 제거, 화면 출력 위주)
+// 2. AI 종합 분석 (주황색 버튼 클릭 시 실행)
+// =====================================
+window.runComprehensiveAnalysis = async () => {
+    const apiKey = localStorage.getItem("GEMINI_KEY");
+    if (!apiKey) return alert("⚙️ 설정 버튼을 눌러 API 키를 먼저 입력해주세요.");
+
+    if (!isEnvSaved && !isQuadratSaved && !isQuizSaved) {
+        return alert("⚠️ 저장된 데이터가 없습니다. 먼저 활동을 진행하고 저장해주세요.");
+    }
+
+    const modal = document.getElementById('ai-report-modal');
+    const content = document.getElementById('ai-report-content');
+    modal.classList.remove('hidden');
+    content.innerText = "🕵️‍♂️ 학생의 성취도와 현장 데이터를 분석하고 있습니다...\n(약 10초 소요)";
+
+    let prompt = `나는 생물 선생님이고, 학생의 탐구 활동 결과를 평가하려고 해. 아래 데이터를 바탕으로 학생에게 피드백을 주는 '종합 생태 보고서'를 작성해줘.\n\n`;
+
+    prompt += `[학생 정보]\n- 이름: ${studentInfo.name || "미입력"}\n\n`;
+
+    if (isQuizSaved) {
+        prompt += `[1. 지식 성취도 평가 (${currentQuizData.quizType})]\n- 점수: ${currentQuizData.score}점\n- 수준: ${currentQuizData.level}\n- 답안: ${currentQuizData.answers}\n\n`;
+    } else {
+        prompt += `[1. 지식 성취도 평가]\n(미응시)\n\n`;
+    }
+
+    if (isEnvSaved) {
+        prompt += `[2. 현장 환경 데이터]\n- 온도: ${currentEnvData.temp}°C\n- 습도: ${currentEnvData.humid}%\n- 조도: ${currentEnvData.light}lux\n- 토양습도: ${currentEnvData.soil}%\n\n`;
+    } else {
+        prompt += `[2. 현장 환경 데이터]\n(미측정)\n\n`;
+    }
+
+    if (isQuadratSaved) {
+        prompt += `[3. 식물 군집 조사]\n- 우점종: ${currentQuadratData.dominant} (IV: ${currentQuadratData.iv})\n- 관찰 종: ${currentQuadratData.summary}\n\n`;
+    } else {
+        prompt += `[3. 식물 군집 조사]\n(미조사)\n\n`;
+    }
+
+    prompt += `
+    [분석 요청]
+    1. **지식 수준**: 퀴즈 점수를 바탕으로 칭찬과 보완점 제시.
+    2. **탐구 분석**: 환경 데이터(온도, 조도 등)와 우점종(식물) 사이의 생태학적 관계 추론.
+    3. **종합 피드백**: 이론(퀴즈)과 실제(탐구)를 얼마나 잘 연결했는지 평가.
+    선생님이 학생에게 말하듯 친절한 존댓말로 작성해줘.
+    `;
+
+    try {
+        const ai = new GoogleGenAI({ apiKey: apiKey });
+        const response = await ai.models.generateContent({
+            model: "gemini-1.5-flash",
+            contents: prompt,
+        });
+        content.innerText = response.text();
+    } catch (error) {
+        console.error(error);
+        content.innerText = "AI 분석 실패: " + error.message;
+    }
+};
+
+// =====================================
+// 3. 카메라 (단순화)
 // =====================================
 let currentStream = null;
-
 window.addEventListener('load', async () => {
     window.addRow(); window.addRow(); 
-    
-    // 카메라 목록 불러오기
     const select = document.getElementById('camera-select');
     try {
         await navigator.mediaDevices.getUserMedia({video: true});
         const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(device => device.kind === 'videoinput');
-        
+        const v = devices.filter(d => d.kind === 'videoinput');
         select.innerHTML = '';
-        if(videoDevices.length === 0) {
-            select.innerHTML = '<option disabled>카메라 없음</option>';
-        } else {
-            videoDevices.forEach((device, i) => {
-                const option = document.createElement('option');
-                option.value = device.deviceId;
-                option.text = device.label || `카메라 ${i + 1}`;
-                select.appendChild(option);
-            });
-        }
-    } catch(e) {
-        console.log("카메라 권한 오류 또는 장치 없음", e);
-        select.innerHTML = '<option disabled>권한 필요</option>';
-    }
+        if(v.length===0) select.innerHTML='<option disabled>없음</option>';
+        else v.forEach((d,i)=>{
+            const opt=document.createElement('option'); opt.value=d.deviceId; opt.text=d.label||`카메라 ${i+1}`; select.appendChild(opt);
+        });
+    } catch(e) { console.log(e); }
 });
-
-window.changeCamera = () => {
-    if(currentStream) {
-        window.stopCamera();
-        setTimeout(window.startCamera, 300);
-    }
-};
-
+window.changeCamera = () => { if(currentStream){ window.stopCamera(); setTimeout(window.startCamera, 300); } };
 window.startCamera = async () => {
     const video = document.getElementById("video-element");
-    const startBtn = document.getElementById("startBtn");
-    const stopBtn = document.getElementById("stopBtn");
     const devId = document.getElementById("camera-select").value;
-    const loader = document.getElementById("loader-text");
-
-    startBtn.style.display = "none";
-    stopBtn.style.display = "inline-block";
-    loader.style.display = "none";
-
+    document.getElementById("startBtn").style.display = "none";
+    document.getElementById("stopBtn").style.display = "inline-block";
+    document.getElementById("loader-text").style.display = "none";
     try {
-        const constraints = {
-            video: { 
-                deviceId: devId ? { exact: devId } : undefined,
-                width: { ideal: 640 }, 
-                height: { ideal: 480 },
-                facingMode: "environment" 
-            }
-        };
-
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { deviceId: devId ? { exact: devId } : undefined, width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "environment" }
+        });
         currentStream = stream;
         video.srcObject = stream;
-        
-    } catch(e) { 
-        alert("카메라를 켤 수 없습니다: " + e.message); 
-        window.stopCamera();
-    }
+    } catch(e) { window.stopCamera(); }
 };
-
 window.stopCamera = () => {
-    const video = document.getElementById("video-element");
-    const startBtn = document.getElementById("startBtn");
-    const stopBtn = document.getElementById("stopBtn");
-    const loader = document.getElementById("loader-text");
-
-    if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
-    }
-    
-    video.srcObject = null;
+    if (currentStream) currentStream.getTracks().forEach(t => t.stop());
+    document.getElementById("video-element").srcObject = null;
     currentStream = null;
-
-    startBtn.style.display = "block";
-    stopBtn.style.display = "none";
-    loader.style.display = "block";
+    document.getElementById("startBtn").style.display = "block";
+    document.getElementById("stopBtn").style.display = "none";
+    document.getElementById("loader-text").style.display = "block";
 };
 
 // =====================================
-// 3. 아두이노 (기존 유지)
+// 4. 아두이노 & 환경데이터 저장
 // =====================================
 let port, keepReading=false;
 let sensorDataLog=[], recordInterval=null;
 let currentVal={t:"-", h:"-", l:"-", s:"-"};
 
 window.connectArduino = async () => {
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if(isMobile) {
-        alert("🚫 모바일에서는 보안상 USB 연결이 불가합니다.\nPC 크롬을 이용해주세요.");
-        return;
-    }
-    if(!navigator.serial) return alert("PC 크롬 브라우저가 필요합니다.");
-    
+    if(/iPhone|iPad|Android/i.test(navigator.userAgent)) return alert("PC 크롬만 지원합니다.");
     try {
         port = await navigator.serial.requestPort();
         await port.open({baudRate:9600});
         document.getElementById('connectBtn').innerText="✅";
         document.getElementById('connectBtn').disabled=true;
         document.getElementById('recordBtn').disabled=false;
-        document.getElementById('record-status').innerText="데이터 수신 중...";
+        document.getElementById('record-status').innerText="수신 중...";
         keepReading=true; readSerial();
     } catch(e){console.log(e);}
 };
-
 async function readSerial() {
     const decoder = new TextDecoderStream();
     port.readable.pipeTo(decoder.writable);
     const reader = decoder.readable.getReader();
     let buffer = "";
-    try {
-        while(keepReading) {
-            const {value, done} = await reader.read();
-            if(done) break;
-            if(value) {
-                buffer += value;
-                const lines = buffer.split("\n");
-                buffer = lines.pop();
-                for(const line of lines) {
-                    const parts = line.trim().split(",");
-                    if(parts.length >= 4) {
-                        currentVal = {t:parts[0], h:parts[1], l:parts[2], s:parts[3]};
-                        document.getElementById('val-temp').innerText = currentVal.t;
-                        document.getElementById('val-humid').innerText = currentVal.h;
-                        document.getElementById('val-light').innerText = currentVal.l;
-                        document.getElementById('val-soil').innerText = currentVal.s;
-                        updateLightDescription(parseInt(currentVal.l));
-                    }
+    while(keepReading) {
+        const {value, done} = await reader.read();
+        if(done) break;
+        if(value) {
+            buffer += value;
+            const lines = buffer.split("\n");
+            buffer = lines.pop();
+            for(const line of lines) {
+                const p = line.trim().split(",");
+                if(p.length >= 4) {
+                    currentVal = {t:p[0], h:p[1], l:p[2], s:p[3]};
+                    document.getElementById('val-temp').innerText = currentVal.t;
+                    document.getElementById('val-humid').innerText = currentVal.h;
+                    document.getElementById('val-light').innerText = currentVal.l;
+                    document.getElementById('val-soil').innerText = currentVal.s;
+                    updateLightDescription(parseInt(currentVal.l));
                 }
             }
         }
-    } catch(e){console.error(e);}
+    }
 }
-
 function updateLightDescription(lux) {
     const el = document.getElementById('desc-light');
-    let text="", color="#666";
-    if (lux < 300) { text="음지"; color="#5c6bc0"; }
-    else if (lux < 700) { text="반음지"; color="#ffb74d"; }
-    else { text="양지"; color="#ef6c00"; }
-    el.innerText = text; el.style.backgroundColor = color; el.style.color="white";
+    el.innerText = lux < 300 ? "음지" : (lux < 700 ? "반음지" : "양지");
+    el.style.backgroundColor = lux < 300 ? "#5c6bc0" : (lux < 700 ? "#ffb74d" : "#ef6c00");
+    el.style.color="white";
 }
-
 window.startRecording = () => {
     sensorDataLog=[["시간","온도","습도","조도","토양습도"]];
     document.getElementById('recordBtn').disabled=true;
@@ -227,17 +267,22 @@ window.startRecording = () => {
         sensorDataLog.push([new Date().toLocaleTimeString(), currentVal.t, currentVal.h, currentVal.l, currentVal.s]);
     },1000);
 };
-window.stopAndSaveRecording = () => {
+window.stopAndSaveRecording = async () => {
     clearInterval(recordInterval);
     document.getElementById('recordBtn').disabled=false;
     document.getElementById('saveRecordBtn').disabled=true;
     document.getElementById('record-status').innerText="완료";
+    
     let csv=""; sensorDataLog.forEach(r=>csv+=r.join(",")+"\n");
     window.downloadCSV("환경데이터.csv", csv);
+
+    currentEnvData = { type: 'env', temp: currentVal.t, humid: currentVal.h, light: currentVal.l, soil: currentVal.s };
+    const success = await sendDataToSheet(currentEnvData);
+    if(success) isEnvSaved = true;
 };
 
 // =====================================
-// 4. 방형구법 (기존 유지)
+// 5. 방형구법 & 데이터 저장
 // =====================================
 window.addRow = () => {
     const d=document.createElement('div'); d.className='list-item';
@@ -252,8 +297,7 @@ window.calculate = () => {
         const n=i.querySelector('.p-name').value;
         const c=Math.abs(parseFloat(i.querySelector('.p-count').value)||0);
         const f=Math.abs(parseFloat(i.querySelector('.p-freq').value)||0);
-        let cv=Math.abs(parseFloat(i.querySelector('.p-cover').value)||0);
-        if(cv>5)cv=5;
+        let cv=Math.abs(parseFloat(i.querySelector('.p-cover').value)||0); if(cv>5)cv=5;
         if(n){ data.push({n, c, fV:f/totalQ, cv}); sD+=c; sF+=(f/totalQ); sC+=cv; }
     });
     if(data.length===0) return alert("데이터 입력 필요");
@@ -269,11 +313,15 @@ window.calculate = () => {
     document.getElementById('dominant-iv').innerText="IV: "+maxIV.toFixed(1);
     document.getElementById('result-modal').classList.remove('hidden');
 };
-window.downloadResultCSV = () => {
+window.downloadResultCSV = async () => {
     let csv="[입력]\n전체방형구,"+document.getElementById('totalQuadrats').value+"\n식물명,개체수,출현방형구,피도\n";
+    let summaryText = "";
     document.querySelectorAll('.list-item').forEach(i=>{
         const n=i.querySelector('.p-name').value;
-        if(n) csv+=`${n},${i.querySelector('.p-count').value},${i.querySelector('.p-freq').value},${i.querySelector('.p-cover').value}\n`;
+        if(n) {
+            csv+=`${n},${i.querySelector('.p-count').value},${i.querySelector('.p-freq').value},${i.querySelector('.p-cover').value}\n`;
+            summaryText += `${n}(${i.querySelector('.p-count').value}), `;
+        }
     });
     csv+="\n[결과]\n순위,우점종,종,IV\n";
     const rows=document.getElementById('resultBody').querySelectorAll('tr');
@@ -283,14 +331,19 @@ window.downloadResultCSV = () => {
         csv+=`${c[0].innerText},${c[0].innerText==='1'?'WIN':''},${c[1].innerText},${c[2].innerText}\n`;
     });
     window.downloadCSV("통합보고서.csv", csv);
+
+    const domSpecies = document.getElementById('dominant-species').innerText;
+    const domIV = document.getElementById('dominant-iv').innerText;
+    currentQuadratData = { type: 'quadrat', dominant: domSpecies, iv: domIV, summary: summaryText };
+    const success = await sendDataToSheet(currentQuadratData);
+    if(success) isQuadratSaved = true;
 };
 
 // =====================================
-// 5. 퀴즈 (기존 유지)
+// 6. 퀴즈
 // =====================================
-let currentQuizType="", studentInfo={id:"", name:""};
+let currentQuizType="";
 let quizQuestions=[], selectedAnswers=[], quizTimer=null, timeLeft=300;
-
 const fullQuestionPool = [
     { id:1, q:"일정한 지역에 모여 사는 '같은 종'의 개체 집단은?", a:0, h:"종이 같아야 합니다.", opts:["개체군", "군집", "생태계", "생물권"] },
     { id:2, q:"여러 종의 개체군들이 모여 이룬 집단은?", a:2, h:"개체군들의 모임입니다.", opts:["개체", "개체군", "군집", "환경"] },
@@ -325,7 +378,6 @@ const fullQuestionPool = [
 ];
 
 window.openLoginModal = (type) => {
-    if (GOOGLE_SCRIPT_URL.includes("여기에")) { alert("선생님! script.js에 URL을 넣어주세요."); return; }
     currentQuizType = type;
     document.getElementById('student-id').value = "";
     document.getElementById('student-name').value = "";
@@ -349,7 +401,6 @@ window.startRealQuiz = () => {
     document.getElementById('next-page-btn').classList.remove('hidden');
     document.getElementById('submit-quiz-btn').classList.add('hidden');
     
-    // 랜덤 10문제
     quizQuestions = fullQuestionPool.sort(() => 0.5 - Math.random()).slice(0, 10);
     selectedAnswers = new Array(10).fill(-1);
     
@@ -366,56 +417,30 @@ window.startRealQuiz = () => {
     }, 1000);
 };
 
-function renderQuestions(containerId, start, end) {
-    const container = document.getElementById(containerId);
-    container.innerHTML = "";
-    for(let i=start; i<end; i++) {
+function renderQuestions(cid, s, e) {
+    const c = document.getElementById(cid); c.innerHTML = "";
+    for(let i=s; i<e; i++) {
         const q = quizQuestions[i];
-        const div = document.createElement('div');
-        div.className = 'quiz-item';
-        let html = `<div class="quiz-q">Q${i+1}. ${q.q} <button class="hint-btn" onclick="toggleHint(this)">💡 힌트</button><div class="hint-text">${q.h}</div></div>`;
-        q.opts.forEach((opt, optIdx) => {
-            html += `<label class="quiz-opt" onclick="selectOpt(this, ${i}, ${optIdx})"><input type="radio" name="q${i}" value="${optIdx}"> ${opt}</label>`;
-        });
-        div.innerHTML = html;
-        container.appendChild(div);
+        const d = document.createElement('div'); d.className = 'quiz-item';
+        let h = `<div class="quiz-q">Q${i+1}. ${q.q} <button class="hint-btn" onclick="toggleHint(this)">💡 힌트</button><div class="hint-text">${q.h}</div></div>`;
+        q.opts.forEach((o, ox) => h += `<label class="quiz-opt" onclick="selectOpt(this, ${i}, ${ox})"><input type="radio" name="q${i}" value="${ox}"> ${o}</label>`);
+        d.innerHTML = h; c.appendChild(d);
     }
 }
-
-window.toggleHint = (btn) => {
-    const txt = btn.nextElementSibling;
-    txt.style.display = (txt.style.display==='block') ? 'none' : 'block';
-};
-window.selectOpt = (label, qIdx, optIdx) => {
-    label.parentElement.querySelectorAll('.quiz-opt').forEach(el=>el.classList.remove('selected'));
-    label.classList.add('selected');
-    selectedAnswers[qIdx] = optIdx;
-};
+window.toggleHint = (b) => { const t=b.nextElementSibling; t.style.display=(t.style.display==='block'?'none':'block'); };
+window.selectOpt = (l, q, o) => { l.parentElement.querySelectorAll('.quiz-opt').forEach(e=>e.classList.remove('selected')); l.classList.add('selected'); selectedAnswers[q]=o; };
 window.changePage = (p) => {
-    if(p===1) {
-        document.getElementById('quiz-page-1').classList.remove('hidden');
-        document.getElementById('quiz-page-2').classList.add('hidden');
-        document.getElementById('prev-page-btn').classList.add('hidden');
-        document.getElementById('next-page-btn').classList.remove('hidden');
-        document.getElementById('submit-quiz-btn').classList.add('hidden');
-    } else {
-        document.getElementById('quiz-page-1').classList.add('hidden');
-        document.getElementById('quiz-page-2').classList.remove('hidden');
-        document.getElementById('prev-page-btn').classList.remove('hidden');
-        document.getElementById('next-page-btn').classList.add('hidden');
-        document.getElementById('submit-quiz-btn').classList.remove('hidden');
-    }
+    document.getElementById('quiz-page-1').classList.toggle('hidden', p!==1);
+    document.getElementById('quiz-page-2').classList.toggle('hidden', p!==2);
+    document.getElementById('prev-page-btn').classList.toggle('hidden', p===1);
+    document.getElementById('next-page-btn').classList.toggle('hidden', p===2);
+    document.getElementById('submit-quiz-btn').classList.toggle('hidden', p!==2);
 };
-function updateTimerDisplay() {
-    const m = Math.floor(timeLeft/60);
-    const s = timeLeft%60;
-    document.getElementById('timer-display').innerText = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
-}
+function updateTimerDisplay() { document.getElementById('timer-display').innerText = `${Math.floor(timeLeft/60).toString().padStart(2,'0')}:${(timeLeft%60).toString().padStart(2,'0')}`; }
 function quizTimeout() {
-    clearInterval(quizTimer);
-    alert("시간 초과! 다음 기회에...");
+    clearInterval(quizTimer); alert("시간 종료!");
     window.closeModal('quiz-modal');
-    sendToGoogleSheet(0, "통과 못함 (시간초과)", "미제출");
+    processQuizResult(0, "통과 못함 (시간초과)", "미제출");
 }
 window.submitQuiz = () => {
     if(selectedAnswers.includes(-1)) return alert("모든 문제를 풀어주세요.");
@@ -424,21 +449,16 @@ window.submitQuiz = () => {
     quizQuestions.forEach((q,i)=>{
         const correct = (q.a === selectedAnswers[i]);
         if(correct) score+=10;
-        ansStr += `[Q${i+1}. ${q.q.substring(0,10)}...](${correct?'O':'X'}) / `;
+        ansStr += `[Q${i+1}](${correct?'O':'X'}) `;
     });
-    let level="노력 요함 (하)";
-    if(score>=80) level="매우 우수 (상)";
-    else if(score>=50) level="보통 (중)";
-    
+    let level = score>=80 ? "매우 우수" : (score>=50 ? "보통" : "노력 요함");
     alert(`[평가 완료]\n점수: ${score}점\n수준: ${level}`);
     window.closeModal('quiz-modal');
-    sendToGoogleSheet(score, level, ansStr);
+    processQuizResult(score, level, ansStr);
 };
-function sendToGoogleSheet(score, level, answers) {
-    const data = { id:studentInfo.id, name:studentInfo.name, type:currentQuizType, score:score, level:level, answers:answers };
-    fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST", mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
-    });
+
+async function processQuizResult(score, level, answers) {
+    currentQuizData = { type: 'quiz', quizType: currentQuizType, score: score, level: level, answers: answers };
+    const success = await sendDataToSheet(currentQuizData);
+    if(success) isQuizSaved = true;
 }

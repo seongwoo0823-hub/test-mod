@@ -66,28 +66,12 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f1f8e9; margin:
 .list-inputs input { width: 100%; padding: 10px; border: 1px solid #eee; border-radius: 12px; text-align: center; background: #fafafa; }
 .btn-del { border: none; background: #ffcdd2; color: #c62828; width: 35px; border-radius: 12px; cursor: pointer; }
 
-/* Camera (화면 고정) */
-.camera-frame { 
-    width: 100%; aspect-ratio: 1/1; 
-    background: #000; border-radius: 25px; 
-    overflow: hidden; position: relative; 
-    margin-bottom: 15px; display: flex; 
-    justify-content: center; align-items: center; 
-}
-#video-element {
-    width: 100%; height: 100%;
-    object-fit: cover;
-    opacity: 1;
-}
-#canvas-element {
-    display: none;
-}
+/* Camera */
+.camera-frame { width: 100%; aspect-ratio: 1/1; background: #000; border-radius: 25px; overflow: hidden; position: relative; margin-bottom: 15px; display: flex; justify-content: center; align-items: center; }
+#video-element { width: 100%; height: 100%; object-fit: cover; opacity: 1; }
 .placeholder { position: absolute; color: white; text-align: center; z-index: 10; }
 .mini-select { position: absolute; top: 15px; right: 20px; padding: 5px 10px; border-radius: 15px; border: 1px solid #ddd; font-size: 0.8rem; z-index: 20; background: rgba(255,255,255,0.8); }
 .result-bars { margin-bottom: 15px; min-height: 40px; }
-.label-item { margin-bottom: 8px; font-size: 0.9rem; font-weight: bold; color: #555; }
-.progress-bg { background: #eee; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 4px; }
-.progress-fill { height: 100%; background: #66bb6a; width: 0%; transition: width 0.3s; }
 
 /* Modals */
 .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
@@ -118,3 +102,15 @@ table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 th { background: #fafafa; padding: 10px; color: #666; position: sticky; top: 0; }
 td { padding: 10px; border-bottom: 1px solid #f0f0f0; text-align: center; }
 .hidden { display: none !important; }
+
+/* AI Analysis Button & Modal */
+.ai-analysis-section { margin: 60px 0 40px 0; text-align: center; display: flex; justify-content: center; align-items: center; }
+.big-btn {
+    font-family: 'Jua', sans-serif; font-size: 1.4rem; padding: 20px 30px; width: 90%; max-width: 450px;
+    background: linear-gradient(135deg, #ffab40, #ff6d00); color: white; border: none; border-radius: 50px;
+    font-weight: 800; cursor: pointer; box-shadow: 0 10px 20px rgba(255, 109, 0, 0.3); transition: transform 0.2s, box-shadow 0.2s;
+}
+.big-btn:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(255, 109, 0, 0.5); }
+.big-btn:active { transform: scale(0.98); }
+.report-text { text-align: left; white-space: pre-wrap; background: #fdfdfe; border: 2px solid #eee; padding: 20px; border-radius: 15px; margin: 15px 0; max-height: 350px; overflow-y: auto; font-size: 1rem; line-height: 1.8; color: #444; }
+.modal-box.large { max-width: 550px; }
