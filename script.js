@@ -56,7 +56,7 @@ window.askGemini = async () => {
     try {
         const ai = new GoogleGenAI({ apiKey: apiKey });
         const response = await ai.models.generateContent({
-            model: "gemini-2.0-flash", // 모델명 최신화 (또는 gemini-1.5-flash)
+            model: "gemini-3-flash-preview", // 모델명 최신화 (또는 gemini-3-flash-preview)
             contents: question + " (고등학생에게 설명하듯 쉽고 친절하게)",
         });
 
@@ -171,7 +171,7 @@ window.runComprehensiveAnalysis = async () => {
     try {
         const ai = new GoogleGenAI({ apiKey: apiKey });
         const response = await ai.models.generateContent({
-            model: "gemini-2.0-flash",
+            model: "gemini-3-flash-preview",
             contents: prompt,
         });
         
