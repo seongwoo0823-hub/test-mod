@@ -7,7 +7,7 @@ import { GoogleGenAI } from "@google/genai";
 
 if (window.location.protocol === 'file:') alert("⚠️ 로컬 파일에서는 카메라 권한이 제한될 수 있습니다.");
 
-// 전역 변수 (데이터 저장 상태)
+// 전역 변수
 let isEnvSaved = false;
 let isQuadratSaved = false;
 let isQuizSaved = false;
@@ -32,7 +32,16 @@ window.saveApiKey = () => {
     window.closeModal('key-modal');
 };
 
-// [수정 1] 일반 AI 채팅 (오류 수정됨)
+// [기능 추가] 두 가지 활동이 모두 완료되었는지 확인하고 성찰 모달 띄우기
+function checkActivityCompletion() {
+    if (isEnvSaved && isQuadratSaved) {
+        setTimeout(() => {
+            document.getElementById('reflection-modal').classList.remove('hidden');
+        }, 1000); // 사용자 경험을 위해 1초 뒤 실행
+    }
+}
+
+// 일반 AI 채팅
 window.askGemini = async () => {
     const question = document.getElementById('ai-input').value;
     const apiKey = localStorage.getItem("GEMINI_KEY");
@@ -42,17 +51,15 @@ window.askGemini = async () => {
     const box = document.getElementById('ai-response');
     const textDiv = document.getElementById('ai-text');
     box.classList.remove('hidden');
-    textDiv.innerText = "🤖 AI(Gemini 3)가 생각 중...";
+    textDiv.innerText = "🤖 AI(Gemini)가 생각 중...";
 
     try {
         const ai = new GoogleGenAI({ apiKey: apiKey });
         const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
+            model: "gemini-2.0-flash", // 모델명 최신화 (또는 gemini-1.5-flash)
             contents: question + " (고등학생에게 설명하듯 쉽고 친절하게)",
         });
 
-        // [핵심 수정] response.text() -> response.text (괄호 제거)
-        // 만약 response.text가 없으면 candidates 배열에서 직접 가져옴
         const answer = response.text || response.candidates?.[0]?.content?.parts?.[0]?.text || "답변을 가져올 수 없습니다.";
         textDiv.innerText = answer;
 
@@ -73,7 +80,7 @@ window.downloadCSV = (fileName, csvContent) => {
     document.body.removeChild(link);
 };
 
-// [핵심] 구글 시트로 데이터 전송 함수
+// 구글 시트로 데이터 전송 함수
 async function sendDataToSheet(payload) {
     if (GOOGLE_SCRIPT_URL.includes("여기에")) {
         alert("script.js 맨 윗줄에 구글 앱스 스크립트 URL을 넣어주세요!");
@@ -112,7 +119,7 @@ async function sendDataToSheet(payload) {
 }
 
 // =====================================
-// 2. AI 종합 분석 (오류 수정됨)
+// 2. AI 종합 분석 (프롬프트 양식 수정됨)
 // =====================================
 window.runComprehensiveAnalysis = async () => {
     const apiKey = localStorage.getItem("GEMINI_KEY");
@@ -125,46 +132,49 @@ window.runComprehensiveAnalysis = async () => {
     const modal = document.getElementById('ai-report-modal');
     const content = document.getElementById('ai-report-content');
     modal.classList.remove('hidden');
-    content.innerText = "🕵️‍♂️ 학생의 성취도와 현장 데이터를 분석하고 있습니다...\n(약 10초 소요)";
+    content.innerText = "🕵️‍♂️ 학생 데이터를 분석하여 보고서를 작성 중입니다...\n(약 10~15초 소요)";
 
-    let prompt = `나는 생물 선생님이고, 학생의 탐구 활동 결과를 평가하려고 해. 아래 데이터를 바탕으로 학생에게 피드백을 주는 '종합 생태 보고서'를 작성해줘.\n\n`;
+    // [수정됨] 프롬프트 구성
+    let prompt = `당신은 고등학교 생물 선생님입니다. 아래 데이터를 바탕으로 학생에게 전달할 '종합 생태 보고서'를 작성해주세요. 말투는 친절하고 격려하는 존댓말을 써주세요.\n\n`;
 
-    prompt += `[학생 정보]\n- 이름: ${studentInfo.name || "미입력"}\n\n`;
+    prompt += `[학생 정보] 이름: ${studentInfo.name || "미입력"}\n`;
 
     if (isQuizSaved) {
-        prompt += `[1. 지식 성취도 평가 (${currentQuizData.quizType})]\n- 점수: ${currentQuizData.score}점\n- 수준: ${currentQuizData.level}\n- 답안: ${currentQuizData.answers}\n\n`;
+        prompt += `[1. 지식 성취도 평가] 점수: ${currentQuizData.score}점, 수준: ${currentQuizData.level}, 상세답안: ${currentQuizData.answers}\n`;
     } else {
-        prompt += `[1. 지식 성취도 평가]\n(미응시)\n\n`;
+        prompt += `[1. 지식 성취도 평가] (미응시)\n`;
     }
 
     if (isEnvSaved) {
-        prompt += `[2. 현장 환경 데이터]\n- 온도: ${currentEnvData.temp}°C\n- 습도: ${currentEnvData.humid}%\n- 조도: ${currentEnvData.light}lux\n- 토양습도: ${currentEnvData.soil}%\n\n`;
+        prompt += `[2. 현장 환경 데이터] 온도: ${currentEnvData.temp}°C, 습도: ${currentEnvData.humid}%, 조도: ${currentEnvData.light}lux, 토양습도: ${currentEnvData.soil}%\n`;
     } else {
-        prompt += `[2. 현장 환경 데이터]\n(미측정)\n\n`;
+        prompt += `[2. 현장 환경 데이터] (미측정)\n`;
     }
 
     if (isQuadratSaved) {
-        prompt += `[3. 식물 군집 조사]\n- 우점종: ${currentQuadratData.dominant} (IV: ${currentQuadratData.iv})\n- 관찰 종: ${currentQuadratData.summary}\n\n`;
+        prompt += `[3. 식물 군집 조사] 우점종: ${currentQuadratData.dominant} (IV: ${currentQuadratData.iv}), 관찰 종 목록: ${currentQuadratData.summary}\n`;
     } else {
-        prompt += `[3. 식물 군집 조사]\n(미조사)\n\n`;
+        prompt += `[3. 식물 군집 조사] (미조사)\n`;
     }
 
     prompt += `
-    [분석 요청]
-    1. **지식 수준**: 퀴즈 점수를 바탕으로 칭찬과 보완점 제시.
-    2. **탐구 분석**: 환경 데이터(온도, 조도 등)와 우점종(식물) 사이의 생태학적 관계 추론.
-    3. **종합 피드백**: 이론(퀴즈)과 실제(탐구)를 얼마나 잘 연결했는지 평가.
-    선생님이 학생에게 말하듯 친절한 존댓말로 작성해줘.
+    \n[작성 양식 - 아래 목차를 반드시 지켜주세요]
+    1. **인사 및 칭찬**: 학생의 이름(${studentInfo.name})을 부르며 수고했다는 말과 함께 시작.
+    2. **성취도 평가 분석**: 점수와 현재 수준 진단, 틀린 문제나 취약한 개념을 분석하여 어떤 내용을 더 공부하면 좋을지 구체적으로 제시.
+    3. **데이터 분석(식물 & 아두이노)**: 관찰된 주요 식물들과 아두이노 환경 데이터(온도, 습도 등)에서 발견되는 특이점이나 불일치하는 부분이 있는지 서술.
+    4. **우점종과 환경의 관계**: 우점종(${currentQuadratData.dominant || '미확인'})이 현재 환경 데이터(특히 빛, 수분 등)와 어떤 연관성이 높은지 분석.
+    5. **식물 성장 제한 요인**: 현재 데이터로 볼 때 식물 성장에 가장 방해를 주거나 제한이 되는 환경 요인은 무엇인지 예측.
+    6. **환경 변화 예측**: 현재 우점종이 계속 자란다면 이 지역의 환경이 앞으로 어떻게 변할지 생태학적 천이 관점에서 예측.
+    7. **결론 및 보완점**: 전체 활동에 대한 총평과 앞으로 더 발전하기 위해 필요한 태도나 학습 방향 제시.
     `;
 
     try {
         const ai = new GoogleGenAI({ apiKey: apiKey });
         const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
+            model: "gemini-2.0-flash",
             contents: prompt,
         });
         
-        // [핵심 수정] response.text() -> response.text 또는 직접 경로 접근
         const answer = response.text || response.candidates?.[0]?.content?.parts?.[0]?.text || "분석 결과를 가져올 수 없습니다.";
         content.innerText = answer;
 
@@ -175,7 +185,7 @@ window.runComprehensiveAnalysis = async () => {
 };
 
 // =====================================
-// 3. 카메라 (단순화)
+// 3. 카메라
 // =====================================
 let currentStream = null;
 window.addEventListener('load', async () => {
@@ -287,7 +297,10 @@ window.stopAndSaveRecording = async () => {
 
     currentEnvData = { type: 'env', temp: currentVal.t, humid: currentVal.h, light: currentVal.l, soil: currentVal.s };
     const success = await sendDataToSheet(currentEnvData);
-    if(success) isEnvSaved = true;
+    if(success) {
+        isEnvSaved = true;
+        checkActivityCompletion(); // [추가] 저장 완료 후 전체 완료 여부 체크
+    }
 };
 
 // =====================================
@@ -345,7 +358,10 @@ window.downloadResultCSV = async () => {
     const domIV = document.getElementById('dominant-iv').innerText;
     currentQuadratData = { type: 'quadrat', dominant: domSpecies, iv: domIV, summary: summaryText };
     const success = await sendDataToSheet(currentQuadratData);
-    if(success) isQuadratSaved = true;
+    if(success) {
+        isQuadratSaved = true;
+        checkActivityCompletion(); // [추가] 저장 완료 후 전체 완료 여부 체크
+    }
 };
 
 // =====================================
@@ -451,6 +467,7 @@ function quizTimeout() {
     window.closeModal('quiz-modal');
     processQuizResult(0, "통과 못함 (시간초과)", "미제출");
 }
+// [수정] 상세 답안(질문 포함) 기록
 window.submitQuiz = () => {
     if(selectedAnswers.includes(-1)) return alert("모든 문제를 풀어주세요.");
     clearInterval(quizTimer);
@@ -458,7 +475,8 @@ window.submitQuiz = () => {
     quizQuestions.forEach((q,i)=>{
         const correct = (q.a === selectedAnswers[i]);
         if(correct) score+=10;
-        ansStr += `[Q${i+1}](${correct?'O':'X'}) `;
+        // 질문과 정오답 여부, 정답 내용을 포함
+        ansStr += `\n[Q${i+1}: ${q.q}] (${correct ? '정답' : '오답'})`;
     });
     let level = score>=80 ? "매우 우수" : (score>=50 ? "보통" : "노력 요함");
     alert(`[평가 완료]\n점수: ${score}점\n수준: ${level}`);
